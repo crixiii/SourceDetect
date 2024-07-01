@@ -552,6 +552,7 @@ class SourceDetect:
         self.get_flux(analyse=True)
         self.group_and_id()
         self.resultdf()
+        self.combine_groups()
 
 
     def check_region(self,xrange,yrange,frame=0):
