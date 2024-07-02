@@ -89,7 +89,7 @@ class SourceDetect:
             self.flux = np.expand_dims(self.flux,0)
 
         if run == True:
-            self.SourceDetect(model=self.model,train=train,do_cut=do_cut)
+            self.SourceDetect(train=train,do_cut=do_cut)
 
 
     def cut(self,xrange=None,yrange=None):
@@ -136,7 +136,7 @@ class SourceDetect:
 
         if train == True:
             print('Building and training model:')
-            _model = PrfModel(self.Xtrain,self.ytrain,model=self.model)
+            _model = PrfModel(self.Xtrain,self.ytrain,savepath=self.savepath,model=self.model)
             self.model = _model.model
         else:
             print('Loading model:')
@@ -245,6 +245,8 @@ class SourceDetect:
             positions (as tuples) of every source detected in every image
         sources_by_frame : list
             lists of positions (as tuples) of every source detected per image
+        to_plot : list
+            list of tuples that can be used to plot detection results
         num_sources : list
             number of sources detected in each image
         frames : list
@@ -257,6 +259,7 @@ class SourceDetect:
             documents whether each unique detection (by position) was flagged for variability
         """
         self.sources, self.sources_by_frame = [], []
+        self.to_plot = []
         self.num_sources, self.frames = [], []
         self.flux_sign, self.variable_flag = [], {}
 
@@ -265,12 +268,11 @@ class SourceDetect:
             i, j = self.y[a].shape[0], self.y[a].shape[1]
             numb_sources = 0
             positions = []
-
+            to_plot_ = []
             for mx in range(j):
                 for my in range(i):
                     channels = self.y[a][my][mx]
-                    prob, x1, y1 = channels[:3]
-                    bright, dim, trash = channels[5:]
+                    prob, x1, y1, x2, y2, bright, dim, trash = channels
 
                     if prob < threshold:
                         continue
@@ -299,8 +301,10 @@ class SourceDetect:
                     numb_sources += 1
                     smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
                     smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
-                    positions.append(smax_i)
-                    self.sources.append(smax_i)
+                    to_plot_.append((prob,px,py,x2,y2))
+                    if smax_i not in positions:
+                        positions.append(smax_i)
+                        self.sources.append(smax_i)
                     self.frames.append(a)
 
                     if smax_i not in self.variable_flag:
@@ -313,7 +317,7 @@ class SourceDetect:
                         self.flux_sign.append('positive')
                     else:
                         self.flux_sign.append('negative')
-
+            self.to_plot.append(to_plot_)
             self.sources_by_frame.append(sorted(positions))
             self.num_sources.append(numb_sources)
 
@@ -537,8 +541,8 @@ class SourceDetect:
         events : pd.Dataframe
             summary table of potential sources (detections unique to each position) across all images
         """
-        print('Collecting results:')
         if update == False:
+            print('Collecting results:')
             self.result = pd.DataFrame(data={'x_centroid':np.array(self.sources)[:,1],'y_centroid': np.array(self.sources)[:,0],'flux': self.source_flux,'frame':self.frames})
             self.result['n_detections'] = self.result.apply(lambda row:self.n_detections[(row['y_centroid'],row['x_centroid'])],axis=1) 
             self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['y_centroid'],row['x_centroid'])],axis=1)
@@ -558,7 +562,7 @@ class SourceDetect:
         framei,framef = self.result.groupby('objid')['frame'].min().to_dict(),self.result.groupby('objid')['frame'].max().to_dict()
         self.events['start_frame'] = self.events.apply(lambda row:framei[row['objid']],axis=1)
         self.events['end_frame'] = self.events.apply(lambda row:framef[row['objid']],axis=1)
-        self.events.drop(columns=['index'])
+        self.events = self.events.drop(columns=['index'])
 
         self.result.to_csv(f'{self.savepath}/detected_sources')
         self.events.to_csv(f'{self.savepath}/detected_events')
@@ -627,7 +631,7 @@ class SourceDetect:
             bounds of the zoomed region: of the form [ymin,ymax,xmin,xmax]
         """
         self.zoom = []
-        self.zoom_range = [yrange[0],yrange[1],xrange[0],xrange[1]]
+        self.zoom_range = [yrange[0],yrange[1],xrange[1],xrange[0]]
         for i in range(0,len(self.sources_by_frame[frame])):
             if self.sources_by_frame[frame][i][0] in range(yrange[0],yrange[1]) and self.close_sources[frame][i][1] in range(xrange[0],xrange[1]):
                 self.zoom.append(self.sources_by_frame[frame][i])
@@ -701,20 +705,9 @@ class SourceDetect:
             if p == 'sources':
                 ax.set_title('Detected Sources')
 
-                i,j = self.y[frame].shape[0], self.y[frame].shape[1]
-
-                for mx in range(j):
-                    for my in range(i):
-                        channels = self.y[frame][my][mx]
-                        prob, x1, y1, x2, y2 = channels[:5]
-
-                        if prob < threshold:
-                            continue
-
-                        color = get_color_by_probability(prob)
-                        px, py = (mx * grid_size1) + x1, (my * grid_size1) + y1
-                        px, py = px/4, py/4
-                        ax.add_patch(Rectangle((int(px-x2/2),int(py-y2/2)),int(x2+1),int(y2+1),edgecolor=color,fill=False,lw=1))
+                for prob, px, py, x2, y2 in self.to_plot[frame]:
+                    color = get_color_by_probability(prob)
+                    ax.add_patch(Rectangle((int(px-x2/2),int(py-y2/2)),int(x2+1),int(y2+1),edgecolor=color,fill=False,lw=1))
 
                 if zoom == True:
                     ax.set_ylim(self.zoom_range[0],self.zoom_range[1])
@@ -758,22 +751,24 @@ class SourceDetect:
         if compare == False:
             plotnames = {'sources':'detected_sources','close':'close_objects','unique':'unique_objects','nobox':'original_frame'}
             for p in which_plots:
-                grid_size1 = 16
                 fig, ax = plt.subplots()
                 im = ax.imshow(self.flux[frame],vmin=-10,vmax=10)
                 fig.colorbar(im)
-                plotter(ax,p,zoom,compare=False,saveplots=saveplots)
+                plotter(ax,p,zoom)
                 if saveplots == True:
                     if zoom == True:
-                        plt.savefig(f'{self.savepath}/{savename}/_{plotnames[p]}_zoomed', dpi=750)
+                        plt.savefig(f'{self.savepath}/{savename}_{plotnames[p]}_zoomed', dpi=750)
                     else:
                 
-                        plt.savefig(f'{self.savepath}/{savename}/_{plotnames[p]}', dpi=750)
+                        plt.savefig(f'{self.savepath}/{savename}_{plotnames[p]}', dpi=750)
 
         else:
-            fig, ax = plt.subplots(1,len(which_plots))
+            fig, ax = plt.subplots(1,len(which_plots),figsize=(10,10))
             for p in range(0,len(which_plots)):
-                plotter(ax[p],which_plots[p],zoom,compare=True,saveplots=saveplots)
+                im = ax[p].imshow(self.flux[frame],vmin=-10,vmax=10)
+                plotter(ax[p],which_plots[p],zoom)
+            cbar_ax = fig.add_axes([0.93, 0.3, 0.022, 0.38])
+            fig.colorbar(im, cax=cbar_ax)
             plt.savefig(f'{self.savepath}/{savename}_object_detection')
 
 
@@ -789,9 +784,11 @@ class SourceDetect:
         plot : bool (default False)
             if True then plot and save an example object detection plot on the first image/frame
         """
+        self.issues = False
         if self.precheck == True:
             self.preview(do_cut=do_cut)
         if self.issues == False:
             self.analyse(train=train)
+        print('Collection complete')
         if plot == True:
             self.plot(which_plots=['sources'],saveplots=True)
