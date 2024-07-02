@@ -4,6 +4,7 @@ from matplotlib.patches import Rectangle
 
 import keras 
 import keras.ops as ops
+from keras import layers
 import tensorflow as tf
 
 from .prfbuild import PrfBuild
@@ -14,7 +15,8 @@ class PrfModel:
     """Builds and/or trains a ML model to perform object detection on simulated datasets from PrfBuild
        or real reduced TESS images then analyses the results"""
 
-    def __init__(self,Xtrain,ytrain,savepath='~/Documents/MachineLearning/Figures',batch_size=32,epochs=50,validation_split=0.1):
+    def __init__(self,Xtrain,ytrain,savepath,model='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
+                 metrics=["categorical_accuracy"],monitor='loss',batch_size=32,epochs=50,validation_split=0.1):
         """
         Initialise
         ------
@@ -25,8 +27,18 @@ class PrfModel:
         ytrain : str
             filename of the labels for the TESS prf arrays to be added into the training/test sets 
             (positive/negative sources can either share a label or have different labels)
-        savepath : str (default '~/Documents/MachineLearning/Figures')
-            location to save output plots
+        savepath : str
+            location to save output models and plots
+        model : str (default 'default')
+            ML model savepath; if 'default' then a prebuilt model is defined
+        optimizer : tensorflow.keras.optimizers instance (default Adam)
+            tensorflow optimiser method to be used by the ML model
+        learning_rate : float (default 0.003)
+            learning rate during the training process
+        metrics : list (default ["categorical_accuracy"])
+            list of metrics (strings and/or keras.metrics.Metric instances) to be evaluated by the model during training/testing (using tensorflow naming conventions)
+        monitor : str (default 'loss')
+            name of metric to monitor during training (using tensorflow naming conventions)
         batch_size : int (default 32)
             batch size used when training the ML model 
         epochs : int (default 50)
@@ -36,9 +48,21 @@ class PrfModel:
         """
         self.dataset = PrfBuild(Xtrain,ytrain)
         self.savepath = savepath
+        self.model = model
+        self.optimizer = optimizer
+        self.learning_rate = learning_rate
+        self.metrics = metrics
+        self.monitor = monitor
         self.batch_size = batch_size
         self.epochs = epochs
         self.validation_split = validation_split
+
+        if self.model == 'default':
+            self.savename = 'object_detection'
+        else:
+            self.savename = self.model.split('.')[0]
+
+        self.__main__()
     
 
     def get_color_by_probability(self,p):
@@ -168,10 +192,7 @@ class PrfModel:
         ------
         model : ML model to be used for object detection
         """
-        if model != 'default':
-            self.model = model
-
-        else:
+        if self.model == 'default':
             x = x_input = tf.keras.layers.Input(shape=(self.dataset.x_shape[0], self.dataset.x_shape[1], 1))
 
             x = tf.keras.layers.Conv2D(12, kernel_size=2, padding='same', activation='relu')(x)
@@ -251,45 +272,35 @@ class PrfModel:
             self.loss_func = loss_func
 
 
-    def compile_model(self,optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,savename='find_sources',metrics=["categorical_accuracy"],monitor='loss'):
+    def compile_model(self,savename='object_detection'):
         """Compile the ML model with the loss function, an optimiser and evaluation metrics
         ------
         Parameters
         ------
-        optimizer : tensorflow.keras.optimizers instance (default Adam)
-            tensorflow optimiser method to be used by the ML model
-        learning_rate : float (default 0.003)
-            learning rate during the training process
         savename : str (default 'find_sources')
             savename for the object detection plot
-        metrics : list (default ["categorical_accuracy"])
-            list of metrics (strings and/or keras.metrics.Metric instances) to be evaluated by the model during training/testing (using tensorflow naming conventions)
-        monitor : str (default 'loss')
-            name of metric to monitor during training (using tensorflow naming conventions)
         """
-        self.optimizer = optimizer(learning_rate=learning_rate)
+        self.optimizer = self.optimizer(learning_rate=self.learning_rate)
         self.savename = savename
-        self.monitor = monitor
-        self.metrics = metrics
+        self.monitor = self.monitor
+        self.metrics = self.metrics
         self.callbacks = [
         keras.callbacks.ModelCheckpoint(
-                f"{savename}.keras", save_best_only=True, monitor=monitor
+                f"{self.savepath/savename}.keras", save_best_only=True, monitor=self.monitor
             ),
             keras.callbacks.ReduceLROnPlateau(
-                monitor=monitor, factor=0.5, patience=20, min_lr=0.0001
+                monitor=self.monitor, factor=0.5, patience=20, min_lr=0.0001
             ),
-            keras.callbacks.EarlyStopping(monitor=monitor, patience=50, verbose=1),
+            keras.callbacks.EarlyStopping(monitor=self.monitor, patience=50, verbose=1),
         ]
-        self.model.compile(loss=self.loss_func, optimizer=self.optimizer, metrics=metrics)
+        self.model.compile(loss=self.loss_func, optimizer=self.optimizer, metrics=self.metrics)
 
 
-    def build(self,model='default',loss='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,savename='find_sources',monitor='loss',metrics=["categorical_accuracy"],summary=True):
+    def build(self,loss='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,savename='find_sources',monitor='loss',metrics=["categorical_accuracy"],summary=True):
         """Defines and compiles a ML model for training/testing then creates a dataset and corresponding labels incase that hasn't already been done
         ------
         Parameters
         ------
-        model : str or tensorflow.keras.models.Model (default 'default')
-            ML model; if 'default' then a default model is defined.
         loss : str or func (default 'default')
             loss function; if 'default' then a default loss function is defined
         optimizer : tensorflow.keras.optimizers instance (default Adam)
@@ -305,15 +316,9 @@ class PrfModel:
         summary : bool (default True)
             if True then prints a visual summary of the ML model 
         """
-        self.add_model(model=model,summary=summary)
-
-        if model != 'default' and loss == 'default':
-            pass
-        else:
-            self.add_loss_func(loss=loss)
-
-        if model == 'default':
-            self.compile_model(optimizer=optimizer,learning_rate=learning_rate,savename=savename,monitor=monitor,metrics=metrics)
+        self.add_model(summary=summary)
+        self.add_loss_func(loss=loss)
+        self.compile_model(optimizer=optimizer,learning_rate=learning_rate,savename=savename,monitor=monitor,metrics=metrics)
         
         self.dataset.make_data(size=1,num=2)
         self.dataset.y = self.model.predict(self.dataset.X)
@@ -497,3 +502,13 @@ class PrfModel:
         self.dataset.y = self.model.predict(self.dataset.X)
         self.show_predict(threshold=threshold,saveplot=saveplot,skipbox=skipbox)
         self.sim_detect()
+
+
+    def __main__(self):
+        """Applies the model building and training process
+        ------
+        Parameters
+        ------
+        """
+        self.build(summary=False)
+        self.train()
