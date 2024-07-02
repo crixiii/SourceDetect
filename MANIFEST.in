@@ -4,3 +4,4 @@ include sourcedetect/training_labels.npy
 include sourcedetect/default_model.keras
 include sourcedetect/X_train.npy
 include sourcedetect/y_train.npy
+include sourcedetect/example_frame.npy
