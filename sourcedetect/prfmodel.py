@@ -286,7 +286,7 @@ class PrfModel:
         self.metrics = self.metrics
         self.callbacks = [
         keras.callbacks.ModelCheckpoint(
-                f"{self.savepath/savename}.keras", save_best_only=True, monitor=self.monitor
+                f"{self.savepath}/{savename}.keras", save_best_only=True, monitor=self.monitor
             ),
             keras.callbacks.ReduceLROnPlateau(
                 monitor=self.monitor, factor=0.5, patience=20, min_lr=0.0001
@@ -318,7 +318,7 @@ class PrfModel:
         """
         self.add_model(summary=summary)
         self.add_loss_func(loss=loss)
-        self.compile_model(optimizer=optimizer,learning_rate=learning_rate,savename=savename,monitor=monitor,metrics=metrics)
+        self.compile_model()
         
         self.dataset.make_data(size=1,num=2)
         self.dataset.y = self.model.predict(self.dataset.X)
@@ -374,18 +374,15 @@ class PrfModel:
             self.validation_split = validation_split
         self.dataset.make_data(size=self.batch_size * 400)
 
-        try:
-            self.history = self.model.fit(
-                self.dataset.X,
-                self.dataset.y,
-                batch_size=self.batch_size,
-                epochs=self.epochs,
-                callbacks=self.callbacks,
-                shuffle=True,
-                validation_split=self.validation_split,
-                verbose=1)
-        except:
-            print('You must build and compile the model first.')
+        self.history = self.model.fit(
+            self.dataset.X,
+            self.dataset.y,
+            batch_size=self.batch_size,
+            epochs=self.epochs,
+            callbacks=self.callbacks,
+            shuffle=True,
+            validation_split=self.validation_split,
+            verbose=1)
 
 
     def sim_detect(self):
@@ -505,10 +502,6 @@ class PrfModel:
 
 
     def __main__(self):
-        """Applies the model building and training process
-        ------
-        Parameters
-        ------
-        """
+        """Applies the model building and training process"""
         self.build(summary=False)
         self.train()
