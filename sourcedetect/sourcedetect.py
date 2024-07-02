@@ -18,7 +18,9 @@ from .prfmodel import PrfModel
 class SourceDetect:
     """Performs object detection and analysis on a set of real TESS images"""
 
-    def __init__(self,filename,Xtrain='default',ytrain='default',savepath='~/Documents/MachineLearning',model='default',run=False,do_cut=False):
+    def __init__(self,filename,savepath,Xtrain='default',ytrain='default',model='default',train=False,run=False,do_cut=False,
+                 precheck=False,batch_size=32,epochs=50,validation_split=0.1,optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
+                 metrics=["categorical_accuracy"],monitor='loss'):
         """
         Initialise
         ------
@@ -26,44 +28,68 @@ class SourceDetect:
         ------
         filename : str
             npy flux file for the TESS images
+        savepath : str
+            location to save any output models, tables, and figures will be saved
         Xtrain : str (default 'default')
-            filename of the true/false TESS prf arrays to be added into the training/test sets; if 'default' then load premade set  
+            filename of the true/false TESS prf arrays (npy file) to be added into the training/test sets; if 'default' then load premade set  
         ytrain : str (default 'default')
-            filename of the labels for the TESS prf arrays to be added into the training/test sets; if 'default' then load premade labels
+            filename of the labels for the TESS prf arrays (npy file) to be added into the training/test sets; if 'default' then load premade labels
             (positive/negative sources can either share a label or have different labels)
-        savepath : str (default '~/Documents/MachineLearning')
-            location to save any outputs
-        model : str or tensorflow.keras.models.Model (default 'default')
-            ML model; if 'default' then a prebuilt model is defined
+        model : str (default 'default')
+            ML model savepath; if 'default' then a prebuilt model is defined
+        train : bool (default False)
+            if true then the ML model is trained on the Xtrain dataset (only use if calling an untrained custom model)
         run : bool (default False)
             if True then the entire source detection and analysis pipeline is run with default settings
         do_cut : bool (default False)
             if True then the TESS images are cut via a user prompt to specify the desired region to keep
+        precheck : bool (default False)
+            if True then display the first frame prior to object detection to check for any formatting issues 
+        batch_size : int (default 32)
+            batch size used when training the ML model 
+        epochs : int (default 50)
+            number of training epochs performed by the ML model 
+        validation_split : float (default 0.1)
+            the ratio of training set images used in the validation set
+        optimizer : tensorflow.keras.optimizers instance (default Adam)
+            tensorflow optimiser method to be used by the ML model
+        learning_rate : float (default 0.003)
+            learning rate during the training process
+        metrics : list (default ["categorical_accuracy"])
+            list of metrics (strings and/or keras.metrics.Metric instances) to be evaluated by the model during training/testing (using tensorflow naming conventions)
+        monitor : str (default 'loss')
+            name of metric to monitor during training (using tensorflow naming conventions)
         """
         self.filename = filename
         self.savepath = savepath
+        self.model = model
         self.flux = np.load(self.filename,allow_pickle=True)
+        self.precheck = precheck
         self.sets = False
-        self.Xtrain = Xtrain
+
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.validation_split = validation_split
+
+        self.optimizer = optimizer
+        learning_rate = learning_rate
+        self.monitor = monitor
+        self.metrics = metrics
 
         self.directory = os.path.dirname(os.path.abspath(__file__)) + '/'
 
         if Xtrain == 'default':
-            Xtrain = self.directory+'training_data.npy'
-            ytrain = self.directory+'training_labels.npy'
+            self.Xtrain = self.directory+'training_data.npy'
+            self.ytrain = self.directory+'training_labels.npy'
         else:
-            ytrain = ytrain
-
-        if model != 'default':
-            self.model = model
-        else:
-            model = keras.saving.load_model(self.directory+'default_model.keras')
+            self.Xtrain = Xtrain
+            self.ytrain = ytrain
 
         if len(self.flux.shape) == 2:
             self.flux = np.expand_dims(self.flux,0)
 
         if run == True:
-            self.SourceDetect(model=model,do_cut=do_cut)
+            self.SourceDetect(model=self.model,train=train,do_cut=do_cut)
 
 
     def cut(self,xrange=None,yrange=None):
@@ -92,37 +118,34 @@ class SourceDetect:
             self.flux = self.flux[:,yrange[0]:yrange[1],xrange[0]:xrange[1]]
         
 
-    def apply_model(self,model=None):
-        """Build, compile and train a ML model using find_sources.PrfModel
+    def apply_model(self,train=False):
+        """Apply the desired model to perform object detection on the image. This funciton can also build, compile and train a ML model using find_sources.PrfModel if desired
         ------
         Parameters
         ------
-        model : None, str or tensorflow.keras.models.Model (default None)
-            ML model; if None then user is prompted to specify the model or enter 'default' which then defines a prebuilt model.
+        train : bool (default False)
+            if True then build and train the model with find_sources.PrfModel
         """
-        if model not in (None,'default'):
-            print('Loading ML Model')
-            self.model = model
+        # if model == None:
+        #     model = 'None'
+        #     print('No model was given.')
+        #     while model.lower() != 'default' and model[-6:] != '.keras':
+        #         self.model = input('Add a preexisting model savename with the parameter "model" (remember the ".keras") or type "default" to load the default model: ')
+        #         if self.model.lower() != 'default' and model[-6:] != '.keras':
+        #             print('Invalid model')
 
+        if train == True:
+            print('Building and training model:')
+            _model = PrfModel(self.Xtrain,self.ytrain,model=self.model)
+            self.model = _model.model
         else:
-
-            if model == None:
-                model = 'None'
-                while model.lower() not in ['default','']:
-                    model = input('No model was given. Add a preexisting model with the parameter "model" after pressing enter or type "default" to build the default model: ')
-                    if model.lower() in ['default','']:
-                        pass
-                    else:
-                        print('Enter "default" or press enter and recall SourceDetect.apply_model with "model" set to your desired model')
-            
-            if model != '':
-                _model = PrfModel(self.Xtrain,self.ytrain)
-                _model.build(summary=False)
-                _model.train()
-                self.model = _model.model
-                self.Xtrain = _model.dataset.X
-                self.ytrain = _model.dataset.y
-
+            print('Loading model:')
+            if self.model == 'default':
+                self.model = self.directory+'default_model.keras'
+            self.model = keras.saving.load_model(self.model,optimizer=self.optimizer,learning_rate=self.learning_rate,
+                 metrics=self.metrics,monitor=self.monitor,batch_size=self.batch_size,epochs=self.epochs,validation_split=self.validation_split) 
+        
+        print('Applying model:')
         self.flux = np.expand_dims(self.flux,-1)
         self.y = self.model.predict(self.flux*np.ones(self.flux.shape))
 
@@ -237,6 +260,7 @@ class SourceDetect:
         self.num_sources, self.frames = [], []
         self.flux_sign, self.variable_flag = [], {}
 
+        print('Performing object detection:')
         for a in range(0,len(self.flux)):
             i, j = self.y[a].shape[0], self.y[a].shape[1]
             numb_sources = 0
@@ -258,9 +282,9 @@ class SourceDetect:
                         py += 2
                     while int(px) < 2:
                         px += 2
-                    while int(py) > 509:
+                    while int(py) > self.flux.shape[1]-3:
                         py -= 2
-                    while int(px) > 509:
+                    while int(px) > self.flux.shape[2]-3:
                         px -= 2
 
                     if self.flux[a][int(py),int(px)] > -1.5 and self.flux[a][int(py),int(px)] < 1.5:
@@ -309,6 +333,8 @@ class SourceDetect:
             self.close_detect()
         if unique == True:
             self.unique_detect()
+        
+        print('Object detection complete')
 
 
     def get_flux(self,analyse=False,position=None,frame=None):
@@ -331,8 +357,9 @@ class SourceDetect:
         if analyse == True:
             self.source_flux = []
             for s in range(0,len(self.sources)):
-                aper = CA(positions=(self.sources[s]),r=5)
-                self.source_flux.append(aper.do_photometry(self.flux[self.frames[s]][:,:,0],method='center')[0][0])
+                # aper = RA(positions=(self.sources[s]),w=5,h=5)
+                # self.source_flux.append(aper.do_photometry(self.flux[self.frames[s]][:,:,0])[0][0])
+                self.source_flux.append(np.sum(self.flux[self.frames[s]][self.sources[s][0]-1:self.sources[s][0]+2,self.sources[s][1]-1:self.sources[s][1]+2]))
 
         else:
             try:
@@ -473,10 +500,22 @@ class SourceDetect:
             frame (image index) to be plotted 
         do_cut : bool (default False)
             if True then provide user prompt to apply a cut to the images via SourceDetect.cut 
+        ------
+        Outputs
+        ------
+        issues : bool
+            if True then there are user identifies issues with the flux file and the object detection process will be cancled
         """
         plt.figure()
         plt.imshow(self.flux[frame],vmin=-10,vmax=10)
         plt.show()
+        issues = ''
+        while issues.lower() not in ['yes','no']:
+            input('Are there any issues with the image below (reply "yes" or "no"): ')
+        if issues.lower() == 'no':
+            self.issues = False
+        else:
+            self.issues = True
         if do_cut == True:
             cut = input('Would you like to make a cut to the images (type "yes" to cut): ')
             if cut.lower() == 'yes':
@@ -498,12 +537,15 @@ class SourceDetect:
         events : pd.Dataframe
             summary table of potential sources (detections unique to each position) across all images
         """
+        print('Collecting results:')
         if update == False:
             self.result = pd.DataFrame(data={'x_centroid':np.array(self.sources)[:,1],'y_centroid': np.array(self.sources)[:,0],'flux': self.source_flux,'frame':self.frames})
             self.result['n_detections'] = self.result.apply(lambda row:self.n_detections[(row['y_centroid'],row['x_centroid'])],axis=1) 
             self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['y_centroid'],row['x_centroid'])],axis=1)
             self.result['group'] = self.result.apply(lambda row:self.groupID[(row['y_centroid'],row['x_centroid'])],axis=1)
             self.result['flux_sign'] = self.flux_sign
+            self.result.drop(self.result[(self.result.flux>0) & (self.result.flux_sign=='negative')].index)
+            self.result.drop(self.result[(self.result.flux<0) & (self.result.flux_sign=='positive')].index)
 
         self.events = self.result.drop_duplicates(subset='objid').drop(columns=['flux','frame','flux_sign']).reset_index()
         self.result['abs_target'] = self.result['flux'].abs()
@@ -516,8 +558,10 @@ class SourceDetect:
         framei,framef = self.result.groupby('objid')['frame'].min().to_dict(),self.result.groupby('objid')['frame'].max().to_dict()
         self.events['start_frame'] = self.events.apply(lambda row:framei[row['objid']],axis=1)
         self.events['end_frame'] = self.events.apply(lambda row:framef[row['objid']],axis=1)
-
         self.events.drop(columns=['index'])
+
+        self.result.to_csv(f'{self.savepath}/detected_sources')
+        self.events.to_csv(f'{self.savepath}/detected_events')
 
     
     def combine_groups(self):
@@ -545,9 +589,17 @@ class SourceDetect:
         self.resultdf(update=True)
 
 
-    def analyse(self,model=None,threshold=0.9):
-        """Build, compile and train a ML model then perform full object detection analysis and tablate the results"""
-        self.apply_model(model=model)
+    def analyse(self,train=False,threshold=0.8):
+        """Build, compile and train a ML model then perform full object detection analysis and tablate the results
+        ------
+        Parameters
+        ------
+        train : bool (default False)
+            if true then the ML model is trained on the Xtrain dataset (only use if calling an untrained custom model)
+        threshold : float (default 0.8)
+            minimum probability of being a true source (according to the ML model) required for detections to be boxed in the plot
+        """
+        self.apply_model(train=train)
         self.detect(threshold=threshold)
         self.get_flux(analyse=True)
         self.group_and_id()
@@ -581,32 +633,38 @@ class SourceDetect:
                 self.zoom.append(self.sources_by_frame[frame][i])
 
 
-    def plot(self,which_plots,frame=0,threshold=0.8,zoom=False,saveplots=False):
+    def plot(self,which_plots=['sources'],frame=0,threshold=0.8,compare=False,zoom=False,saveplots=False,savename=''):
         """Produces output plots illustrating the object detection process with identification boxes.
            Zoom currently only available for the close and unique sources plots
         ------
         Parameters
         ------
-        which_plots : list
+        which_plots : list (default ['sources'])
             one or more types of image plots to be produced out of the following options for identifying detections:
                 - "sources" : all detections within a particular frame 
                 - "close" : all detections in close proximity to other detections within a particular frame 
                 - "unique" : all guaranteed unique detections (only one from each grouping included) within a particular frame  
+                - "nobox" : the specified frame without any object detection boxes plotted on top
         frame : int (default 0)
             the frame (image index) to be plotted with speficied detections identified (see which_plots above)
         threshold : float (default 0.8)
             minimum probability of being a true source (according to the ML model) required for detections to be boxed in the plot
+        compare : bool (default False)
+            if True then the plots specified by 'which_plots' will be displayed using matplotlib.pyplot.subplots rather than individually
         zoom : bool (default False)
             if True then only plot the region specified when calling SourceDetect.zoom (this must be done first)            
         saveplots : bool (default False)
             if True then save all plots to the location defined by SourceDetect.savepath
+        savename : str (default '')
+            beginning of the savename for any plots made (the plot types specified by 'which_plots' are appended to the end)
         """
         if zoom == True:
             try:
                 self.zoom = self.zoom
             except:
-                print('self.zoom, the region to be plotted, needs to be defined first')
+                print('self.zoom, the region to be plotted, needs to be defined first by calling SourceDetect.check_region')
                 
+
         def get_color_by_probability(p):
             """Specifies the box colour plotted for each source detection based on the confidence of the model.
                This is only important when the threshold is lowered to display uncertain objects in the plots
@@ -626,14 +684,23 @@ class SourceDetect:
             if p < 0.8:
                 return 'yellow'
             return 'green'
-
-        for p in which_plots:
-            grid_size1 = 16
-            fig, ax = plt.subplots()
-            im = ax.imshow(self.flux[frame],vmin=-10,vmax=10)
-            fig.colorbar(im)
-
+        
+        
+        def plotter(ax,p,zoom=False):
+            """Performs the plotting for SourceDetect.plot
+            ------
+            Parameters
+            ------
+            ax : matplotlib.axes._axes.Axes
+                the subplot to be plotted on for this iteration
+            p : str
+                ones of the arguments from 'which_plots' defined when calling SourceDetect.plot
+            zoom : bool (default False)
+                if True then only plot the region specified when calling SourceDetect.zoom (this must be done first)            
+            """
             if p == 'sources':
+                ax.set_title('Detected Sources')
+
                 i,j = self.y[frame].shape[0], self.y[frame].shape[1]
 
                 for mx in range(j):
@@ -653,15 +720,11 @@ class SourceDetect:
                     ax.set_ylim(self.zoom_range[0],self.zoom_range[1])
                     ax.set_xlim(self.zoom_range[2],self.zoom_range[3])
 
-                if saveplots == True:
-                    if zoom == True:
-                        plt.savefig(f'{self.savepath}/sources_plot_zoomed', dpi=750)
-                    else:
-                        plt.savefig(f'{self.savepath}/sources_plot', dpi=750)
-
                 plt.show()
 
             elif p == 'close':
+                ax.set_title('Close Proximity Detections')
+
                 for i in range(0,len(self.close_sources)):
                     for j in range(0,len(self.close_sources[i])):
                         ax.add_patch(Rectangle((int(self.close_sources[i][j][1]-2), int(self.close_sources[i][j][0]-2)), 4, 4, edgecolor='green', fill=False, lw=1))
@@ -670,38 +733,65 @@ class SourceDetect:
                     ax.set_ylim(self.zoom_range[0],self.zoom_range[1])
                     ax.set_xlim(self.zoom_range[2],self.zoom_range[3])
                 
-                if saveplots == True:
-                    if zoom == True:
-                        plt.savefig(f'{self.savepath}/close_objects_zoomed', dpi=750)
-                    else:
-                        plt.savefig(f'{self.savepath}/close_objects', dpi=750)
-               
                 plt.show()
 
             elif p == 'unique':
+                ax.set_title('Definite Unique Detections')
+
                 for i, j in self.unique_sources[frame]:
                     ax.add_patch(Rectangle((int(j-2),int(i-2)),4,4,edgecolor='green', fill=False, lw=1))
                 
                 if zoom == True:
                     ax.set_ylim(self.zoom_range[0],self.zoom_range[1])
                     ax.set_xlim(self.zoom_range[2],self.zoom_range[3])
-                
-                if saveplots == True:
-                    if zoom == True:
-                        plt.savefig(f'{self.savepath}/unique_objects_zoomed', dpi=750)
-                    else:
-                
-                        plt.savefig(f'{self.savepath}/unique_objects_plot', dpi=750)
-                
+                                    
+                plt.show()
+
+            elif p == 'nobox':
+                ax.set_title('Original Frame')
                 plt.show()
 
             else:
-                print('Invalid plot type (options are "sources", "close", "unique", or a combination of these as a list or tuple)')
+                print('Invalid plot type (options are "sources", "close", "unique", "nobox", or a combination of these as a list or tuple)')
+    
+
+        if compare == False:
+            plotnames = {'sources':'detected_sources','close':'close_objects','unique':'unique_objects','nobox':'original_frame'}
+            for p in which_plots:
+                grid_size1 = 16
+                fig, ax = plt.subplots()
+                im = ax.imshow(self.flux[frame],vmin=-10,vmax=10)
+                fig.colorbar(im)
+                plotter(ax,p,zoom,compare=False,saveplots=saveplots)
+                if saveplots == True:
+                    if zoom == True:
+                        plt.savefig(f'{self.savepath}/{savename}/_{plotnames[p]}_zoomed', dpi=750)
+                    else:
+                
+                        plt.savefig(f'{self.savepath}/{savename}/_{plotnames[p]}', dpi=750)
+
+        else:
+            fig, ax = plt.subplots(1,len(which_plots))
+            for p in range(0,len(which_plots)):
+                plotter(ax[p],which_plots[p],zoom,compare=True,saveplots=saveplots)
+            plt.savefig(f'{self.savepath}/{savename}_object_detection')
 
 
-    def SourceDetect(self,model='default',do_cut=False,plot=False):
-        """Perform object detection on a collection of TESS images/frames"""
-        self.preview(do_cut=do_cut)
-        self.analyse(model=model)
+    def SourceDetect(self,train=False,do_cut=False,plot=False):
+        """Perform object detection on a collection of TESS images/frames
+        ------
+        Parameters
+        ------
+        train : bool (default False)
+            if true then the ML model is trained on the Xtrain dataset (only use if calling an untrained custom model)
+        do_cut : bool (default False)
+            if True then the TESS images are cut via a user prompt to specify the desired region to keep
+        plot : bool (default False)
+            if True then plot and save an example object detection plot on the first image/frame
+        """
+        if self.precheck == True:
+            self.preview(do_cut=do_cut)
+        if self.issues == False:
+            self.analyse(train=train)
         if plot == True:
             self.plot(which_plots=['sources'],saveplots=True)
