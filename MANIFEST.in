@@ -1,6 +1,2 @@
 include README.md
-incluce sourcedetect/training_data.npy
-include sourcedetect/training_labels.npy
-include sourcedetect/X_train.npy
-include sourcedetect/y_train.npy
-include sourcedetect/example_frame.npy
+include *.npy
