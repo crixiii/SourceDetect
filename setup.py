@@ -8,6 +8,10 @@ AUTHOR ='Andrew Moore'
 VERSION = '1.0.0'
 REQUIRED = ['keras>=3.0',
             'tensorflow>=2.16',
+            'numpy',
+            'matplotlib',
+            'photutils',
+            'pandas'
             ]
 
 
