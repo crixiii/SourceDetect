@@ -23,6 +23,6 @@ setup(
     author_email=EMAIL,
     author=AUTHOR,
     packages=['sourcedetect'],
-    install_requires=REQUIRED
+    install_requires=REQUIRED,
     include_package_data=True
 )
