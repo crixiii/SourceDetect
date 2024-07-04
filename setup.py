@@ -20,4 +20,5 @@ setup(
     author=AUTHOR,
     packages=['sourcedetect'],
     install_requires=REQUIRED
+    include_package_data=True
 )
