@@ -1,5 +1,7 @@
 import numpy as np
 
+
+
 class PrfBuild:
     """Create a training or test set of simulated TESS images containing both 'real' and 'false' sources"""
 
@@ -10,10 +12,9 @@ class PrfBuild:
         Parameters
         ------
         Xtrain : str
-            filename of the true/false TESS prf arrays to be added into the training/test sets  
+            TESS prf arrays to be added into the training/test sets  
         ytrain : str
-            filename of the labels for the TESS prf arrays to be added into the training/test sets 
-            (positive/negative sources can either share a label or have different labels)
+            TESS prf arrays to be added into the training/test sets (positive/negative sources can either share a label or have different labels)
         ------
         Options
         ------
@@ -21,8 +22,8 @@ class PrfBuild:
             if true (default) then the training/test set will be built upon calling PrfBuild rather 
             than just defining the prfs and corresponding labels 
         """
-        self.x_prfs = np.load(Xtrain,allow_pickle=True)
-        self.y_prfs =  np.load(ytrain,allow_pickle=True)
+        self.Xtrain = Xtrain
+        self.ytrain =  ytrain
         if run==True:
             self.make_data()
 
@@ -48,27 +49,41 @@ class PrfBuild:
         positions = []
 
         for _ in range(num):
-            idx = np.random.randint(len(self.x_prfs))
-            number = self.x_prfs[idx]
-            class_ = int(self.y_prfs[idx])
-            px, py = np.random.randint(2,int(self.x_shape[0]-2)), np.random.randint(2,int(self.x_shape[1]-2))
-            mx, my = (px+2) // self.grid_size, (py+2) // self.grid_size
-            output = y[my][mx]
+            placed = False
+            while placed == False:
+                try:
+                    idx = np.random.randint(len(self.Xtrain))
+                    number = self.Xtrain[idx]
+                    class_, w, h = int(self.ytrain[idx][0]), int(self.ytrain[idx][1]), int(self.ytrain[idx][2])
+                    px, py = np.random.randint(2,int(self.x_shape[0]-2)), np.random.randint(2,int(self.x_shape[1]-2))
+                    mx, my = (px+2) // self.grid_size, (py+2) // self.grid_size
+                    output = y[my][mx]
 
-            if output[0] > 0:
-                continue
+                    #prevent multiple generations from overlapping
+                    if output[0] > 0:
+                        continue
+                    overlap = False
+                    for i,j in positions:
+                        if i in range(py-2,px+3) and j in range(px-2,px+3):
+                            overlap = True
+                    if overlap == True:
+                        continue
 
-            output[0] = 1.0
-            output[1] = px - (mx * self.grid_size)  # x1
-            output[2] = py - (my * self.grid_size)  # y1
-            output[3] = 3.0  
-            output[4] = 3.0   
-            output[5 + class_] = 1.0
+                    output[0] = 1.0
+                    output[1] = px - (mx * self.grid_size)  # x1
+                    output[2] = py - (my * self.grid_size)  # y1
+                    output[3] = int(w)  
+                    output[4] = int(h) 
+                    output[5 + class_] = 1.0
 
-            X[py-1:py+2,px-1:px+2] = number*np.max((np.random.rand()*2.5)+0.5)
-            if class_ != 2:
-                positions.append((py,px))
-
+                    X[py-h//2:py+(h-h//2),px-w//2:px+(w-w//2),0] = number
+                    if class_ != 3:
+                        X[py-h//2:py+(h-h//2),px-w//2:px+(w-w//2),0] *= np.max((np.random.rand()*2.5)+0.5)
+                    if class_ < 2:
+                        positions.append((py,px))
+                    placed = True
+                except:
+                    pass
         return positions
         
 
@@ -100,7 +115,7 @@ class PrfBuild:
         self.grid_size = int(x_shape[0]/y_shape[0])
 
         X = np.zeros((size, self.x_shape[0], self.x_shape[1], 1), dtype=np.float32)
-        y = np.zeros((size, self.y_shape[0], self.y_shape[1], 8), dtype=np.float32)
+        y = np.zeros((size, self.y_shape[0], self.y_shape[1], 9), dtype=np.float32)
         positions = []
 
         for i in range(size):
