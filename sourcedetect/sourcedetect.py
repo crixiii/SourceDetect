@@ -319,7 +319,6 @@ class SourceDetect:
                     smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
                     smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
-                    print(f'({int(smax_i[1])},{int(smax_i[0])}): {bright}, {dim}, {trash}, {fake}')
                     if smax_i not in positions:
                         to_plot_.append((prob,smax_i[1],smax_i[0],x2,y2))
                         positions.append(smax_i)
