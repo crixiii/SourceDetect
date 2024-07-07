@@ -15,7 +15,7 @@ class PrfModel:
     """Builds and/or trains a ML model to perform object detection on simulated datasets from PrfBuild
        or real reduced TESS images then analyses the results"""
 
-    def __init__(self,Xtrain,ytrain,savepath,model='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
+    def __init__(self,Xtrain,ytrain,savepath=None,model='default',loss_func='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
                  metrics=["categorical_accuracy"],monitor='loss',batch_size=32,epochs=50,validation_split=0.1):
         """
         Initialise
@@ -23,14 +23,15 @@ class PrfModel:
         Parameters
         ------
         Xtrain : str
-            filename of the true/false TESS prf arrays to be added into the training/test sets  
+            TESS prf arrays to be added into the training/test sets  
         ytrain : str
-            filename of the labels for the TESS prf arrays to be added into the training/test sets 
-            (positive/negative sources can either share a label or have different labels)
-        savepath : str
-            location to save output models and plots
+            labels of the TESS prf arrays to be added into the training/test sets (positive/negative sources can either share a label or have different labels)
+        savepath : str or None (default None)
+            location to save any output modelsand plots
         model : str (default 'default')
             ML model savepath; if 'default' then a prebuilt model is defined
+        loss_func : str or keras.losses (default 'default')
+            loss function used by the model; if 'default' then a prebuilt model is defined
         optimizer : tensorflow.keras.optimizers instance (default Adam)
             tensorflow optimiser method to be used by the ML model
         learning_rate : float (default 0.003)
@@ -47,8 +48,19 @@ class PrfModel:
             the ratio of training set images used in the validation set 
         """
         self.dataset = PrfBuild(Xtrain,ytrain)
-        self.savepath = savepath
+        if savepath == None:
+            self.savepath = '.'
+        else:
+            self.savepath = savepath
         self.model = model
+        self.loss_func = loss_func
+        if self.loss_func == 'default':
+            try:
+                loss = self.model.loss
+                if loss != None:
+                    self.loss_func = loss
+            except:
+                pass
         self.optimizer = optimizer
         self.learning_rate = learning_rate
         self.metrics = metrics
@@ -57,10 +69,7 @@ class PrfModel:
         self.epochs = epochs
         self.validation_split = validation_split
 
-        if self.model == 'default':
-            self.savename = 'object_detection'
-        else:
-            self.savename = self.model.split('.')[0]
+        self.savename = 'object_detection'
 
         self.__main__()
     
@@ -121,11 +130,13 @@ class PrfModel:
             for my in range(i):
                 output = self.dataset.y[0][my][mx]
                 prob, x1, y1, x2, y2 = output[:5]
-                bright, dim, trash = output[5:]
+                bright, dim, trash, fake = output[5:]
 
                 if prob < threshold:
                     continue
                 if trash > bright and trash > dim:
+                    continue
+                if fake > bright and fake > dim:
                     continue
 
                 color = self.get_color_by_probability(prob)
@@ -135,11 +146,7 @@ class PrfModel:
 
                 if self.X[0][int(py),int(px)] > -1.5 and self.X[0][int(py),int(px)] < 1.5:
                     continue 
-                if np.min(self.X[0][int(py)-1:int(py)+2,int(px)-1:int(px)+2]) > -1.5 and np.max(self.X[0][int(py)-1:int(py)+2,int(px)-1:int(px)+2]) < 1.5:
-                    continue
                 if np.max(self.X[0][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) > 7.5 and np.min(self.X[0][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) < -7.5:
-                    continue
-                if np.max(np.abs(self.X[0][int(py)-1:int(py)+2,int(px)-1:int(px)+2])) < 10:
                     continue
 
                 if skipbox == False:
@@ -178,8 +185,8 @@ class PrfModel:
         self.bright_or_dim = bright_or_dim
 
 
-    def add_model(self,model='default',summary=True):
-        """Defines the ML model to be trained/tested
+    def add_model(self,summary=True):
+        """Call to build the default ML model to be trained and/or display a model summary (for either the default or own custom model)
         ------
         Parameters
         ------
@@ -208,38 +215,31 @@ class PrfModel:
 
             x_prob = tf.keras.layers.Conv2D(1, kernel_size=3, padding='same', activation='sigmoid', name='x_prob')(x)
             x_boxes = tf.keras.layers.Conv2D(4, kernel_size=3, padding='same', name='x_boxes')(x)
-            x_cls = tf.keras.layers.Conv2D(3, kernel_size=3, padding='same', activation='sigmoid', name='x_cls')(x)
+            x_cls = tf.keras.layers.Conv2D(4, kernel_size=3, padding='same', activation='sigmoid', name='x_cls')(x)
 
             gate = ops.where(x_prob > 0.5, ops.ones_like(x_prob), ops.zeros_like(x_prob))
             x_boxes = x_boxes * gate
             x_cls = x_cls * gate
 
             x = tf.keras.layers.Concatenate()([x_prob, x_boxes, x_cls]) 
-            self.model = tf.keras.models.Model(x_input, x)
+            self.model = keras.Model(x_input, x, name="ObjectDetector")
 
         if summary == True:
             self.model.summary()
 
 
-    def add_loss_func(self,loss='default'):
-        """Defines the loss function used to quantify the performance of the training process
-        ------
-        Parameters
-        ----
-        loss : str or func (default 'default')
-            loss function; if 'default' then a default loss function is defined
+    def add_loss_func(self):
+        """Build the default loss function used to quantify the performance of the training process
         ------
         Returns
         ------
         loss_func : function
             loss function to be used by the ML model
         """
-        if loss != 'default':
-            self.loss_func = loss
-        else:
+        if self.loss_func == 'default':
             idx_p = [0]
             idx_bb = [1, 2, 3, 4]
-            idx_cls = [5, 6, 7]
+            idx_cls = [5, 6, 7, 8]
 
             @tf.function
             def loss_bb(y_true, y_pred):
@@ -277,7 +277,7 @@ class PrfModel:
         ------
         Parameters
         ------
-        savename : str (default 'find_sources')
+        savename : str (default 'object_detection')
             savename for the object detection plot
         """
         self.optimizer = self.optimizer(learning_rate=self.learning_rate)
@@ -296,28 +296,18 @@ class PrfModel:
         self.model.compile(loss=self.loss_func, optimizer=self.optimizer, metrics=self.metrics)
 
 
-    def build(self,loss='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,savename='find_sources',monitor='loss',metrics=["categorical_accuracy"],summary=True):
+    def build(self,summary=True):
         """Defines and compiles a ML model for training/testing then creates a dataset and corresponding labels incase that hasn't already been done
         ------
         Parameters
         ------
         loss : str or func (default 'default')
             loss function; if 'default' then a default loss function is defined
-        optimizer : tensorflow.keras.optimizers instance (default Adam)
-            tensorflow optimiser method to be used by the ML model
-        learning_rate : float (default 0.003)
-            learning rate during the training process
-        savename : str (default 'find_sources')
-            file name for the object detection plot
-        metrics : list of str and/or keras.metrics.Metric instance (default ["categorical_accuracy"])
-            list of metrics to be evaluated by the model during training/testing (using tensorflow naming conventions)
-        monitor : str (default 'loss')
-            name of metric to monitor during training (using tensorflow naming conventions)
         summary : bool (default True)
             if True then prints a visual summary of the ML model 
         """
         self.add_model(summary=summary)
-        self.add_loss_func(loss=loss)
+        self.add_loss_func()
         self.compile_model()
         
         self.dataset.make_data(size=1,num=2)
@@ -383,6 +373,7 @@ class PrfModel:
             shuffle=True,
             validation_split=self.validation_split,
             verbose=1)
+        self.model.save("da_model.keras")
 
 
     def sim_detect(self):
@@ -503,5 +494,10 @@ class PrfModel:
 
     def __main__(self):
         """Applies the model building and training process"""
-        self.build(summary=False)
+        if self.model == 'default':
+            print('Building Model:')
+            self.build(summary=False)
+            print('Building Complete')
+        print('Training Model:')
         self.train()
+        print('Training complete')
