@@ -18,7 +18,7 @@ from .prfmodel import PrfModel
 class SourceDetect:
     """Performs object detection and analysis on a set of real TESS images"""
 
-    def __init__(self,flux,Xtrain='default',ytrain='default',savepath=None,model='default',train=False,run=False,do_cut=False,
+    def __init__(self,flux,Xtrain='default',ytrain='default',savepath=None,savename=None,model='default',train=False,run=False,do_cut=False,
                  precheck=False,batch_size=32,epochs=50,validation_split=0.1,optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
                  metrics=["categorical_accuracy"],monitor='loss'):
         """
@@ -34,6 +34,8 @@ class SourceDetect:
             labels of the TESS prf arrays (npy file) to be added into the training/test sets; if 'default' then load premade labels (positive/negative sources can either share a label or have different labels)
         savepath : str or None (default None)
             location to save any output models, tables, and figures will be saved
+        savename : str or None (default None)
+            beginning of the savename for any tables or plots made 
         model : str or keras.Model (default 'default')
             ML model or model savepath; if 'default' then a prebuilt model is defined
         train : bool (default False)
@@ -70,6 +72,10 @@ class SourceDetect:
             self.savepath = '.'
         else:
             self.savepath = savepath
+        if savename == None:
+            self.savename = '.'
+        else:
+            self.savename = savename
         self.directory = os.path.dirname(os.path.abspath(__file__)) + '/'
         if type(model) == str:
             if model == 'default':
@@ -584,8 +590,8 @@ class SourceDetect:
         self.events['end_frame'] = self.events.apply(lambda row:framef[row['objid']],axis=1)
         self.events = self.events.drop(columns=['index'])
 
-        self.result.to_csv(f'{self.savepath}/detected_sources')
-        self.events.to_csv(f'{self.savepath}/detected_events')
+        self.result.to_csv(f'{self.savepath}/{self.savename}/detected_sources')
+        self.events.to_csv(f'{self.savepath}/{self.savename}/detected_events')
 
     
     def combine_groups(self):
@@ -666,7 +672,7 @@ class SourceDetect:
                 self.zoom.append(self.sources_by_frame[frame][i])
 
 
-    def plot(self,which_plots=['sources'],frame=0,compare=False,zoom=False,saveplots=False,savename=''):
+    def plot(self,which_plots=['sources'],frame=0,compare=False,zoom=False,saveplots=False,savepath=None,savename=None):
         """Produces output plots illustrating the object detection process with identification boxes.
            Zoom currently only available for the close and unique sources plots
         ------
@@ -683,17 +689,24 @@ class SourceDetect:
         compare : bool (default False)
             if True then the plots specified by 'which_plots' will be displayed using matplotlib.pyplot.subplots rather than individually
         zoom : bool (default False)
-            if True then only plot the region specified when calling SourceDetect.zoom (this must be done first)            
+            if True then only plot the region specified when calling SourceDetect.zoom (this must be done first)    
         saveplots : bool (default False)
             if True then save all plots to the location defined by SourceDetect.savepath
-        savename : str (default '')
-            beginning of the savename for any plots made (the plot types specified by 'which_plots' are appended to the end)
+        savepath : str or None (default None)
+            location to save any output models, tables, and figures will be saved (if None then the preexisting savepath is used)
+        savename : str or None (default None)
+            beginning of the savename for any plots made (if None then the preexisting savename is used)
         """
         if zoom == True:
             try:
                 self.zoom = self.zoom
             except:
                 print('self.zoom, the region to be plotted, needs to be defined first by calling SourceDetect.check_region')
+        
+        if savepath != None:
+            self.savepath = savepath
+        if savename != None:
+            self.savename = savename
                 
 
         def get_color_by_probability(p):
@@ -784,9 +797,9 @@ class SourceDetect:
                 plotter(ax,p,zoom)
                 if saveplots == True:
                     if zoom == True:
-                        plt.savefig(f'{self.savepath}/{savename}_{plotnames[p]}_zoomed', dpi=750)
+                        plt.savefig(f'{self.savepath}/{self.savename}_{plotnames[p]}_zoomed', dpi=750)
                     else:
-                        plt.savefig(f'{self.savepath}/{savename}_{plotnames[p]}', dpi=750)
+                        plt.savefig(f'{self.savepath}/{self.savename}_{plotnames[p]}', dpi=750)
 
         else:
             fig, ax = plt.subplots(1,len(which_plots),figsize=(10,10))
@@ -795,16 +808,24 @@ class SourceDetect:
                 plotter(ax[p],which_plots[p],zoom)
             cbar_ax = fig.add_axes([0.93, 0.3, 0.022, 0.38])
             fig.colorbar(im, cax=cbar_ax)
-            plt.savefig(f'{self.savepath}/{savename}_object_detection')
+            if saveplots == True:
+                if zoom == True:
+                    plt.savefig(f'{self.savepath}/{self.savename}_object_detection_zoomed', dpi=750)
+                else:
+                    plt.savefig(f'{self.savepath}/{self.savename}_object_detection', dpi=750)
 
 
-    def SourceDetect(self,flux=None,train=False,do_cut=False,plot=False):
+    def SourceDetect(self,flux=None,savepath=None,savename=None,train=False,do_cut=False,plot=False):
         """Perform object detection on a collection of TESS images/frames
         ------
         Parameters
         ------
         flux : array or None (defualt None)
             use this parameter to change the set of images being analysed rather than having to create a brand new SourceDetect object
+        savepath : str or None (default None)
+            location to save any output models, tables, and figures will be saved (if None then the preexisting savepath is used)
+        savename : str or None (default None)
+            beginning of the savename for any tables or plots made (if None then the preexisting savename is used)
         train : bool (default False)
             if true then the ML model is trained on the Xtrain dataset (only use if calling an untrained custom model)
         do_cut : bool (default False)
@@ -815,6 +836,10 @@ class SourceDetect:
         self.issues = False
         if self.precheck == True:
             self.preview(do_cut=do_cut)
+        if savepath !=None:
+            self.savepath = savepath
+        if savename != None:
+            self.savename = savename
         if self.issues == False:
             if flux != None:
                 self.flux = flux
@@ -823,4 +848,4 @@ class SourceDetect:
             self.analyse(train=train)
         print('Collection complete')
         if plot == True:
-            self.plot(which_plots=['sources'])
+            self.plot(which_plots=['sources'],savepath=savepath,savename=savename)
