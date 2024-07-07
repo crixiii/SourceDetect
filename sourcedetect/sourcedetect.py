@@ -71,7 +71,7 @@ class SourceDetect:
         else:
             self.savepath = savepath
         self.directory = os.path.dirname(os.path.abspath(__file__)) + '/'
-        if type(model) == 'str':
+        if type(model) == str:
             if model == 'default':
                 model = self.directory+'default_model.keras'
             self.model = keras.saving.load_model(model,compile=False)
