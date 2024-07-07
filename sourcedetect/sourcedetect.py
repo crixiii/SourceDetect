@@ -336,7 +336,7 @@ class SourceDetect:
                             variable_flag_counter[smax_i] = 0
                         else:
                             if self.variable_flag[smax_i] != 1*(bright>dim):
-                                variable_flag_counter += 1
+                                variable_flag_counter[smax_i] += 1
                                 self.variable_flag[smax_i] = 1*(bright>dim)
 
                         if self.flux[a][smax_i] > 0:
