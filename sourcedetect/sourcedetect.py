@@ -18,7 +18,7 @@ from .prfmodel import PrfModel
 class SourceDetect:
     """Performs object detection and analysis on a set of real TESS images"""
 
-    def __init__(self,filename,savepath,Xtrain='default',ytrain='default',model='default',train=False,run=False,do_cut=False,
+    def __init__(self,flux,Xtrain='default',ytrain='default',savepath=None,model='default',train=False,run=False,do_cut=False,
                  precheck=False,batch_size=32,epochs=50,validation_split=0.1,optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
                  metrics=["categorical_accuracy"],monitor='loss'):
         """
@@ -26,17 +26,16 @@ class SourceDetect:
         ------
         Parameters
         ------
-        filename : str
-            npy flux file for the TESS images
-        savepath : str
+        flux : array or str
+            TESS image (array of fluxes): either the array itself or its filepath to its file; the flux array must be 2D with dimensions (y,x) or 3D with dimensions (n_frames,y,x)
+        Xtrain : str or array (default 'default')
+            TESS prf arrays (npy file) to be added into the training/test sets; if 'default' then load premade set  
+        ytrain : str or array (default 'default')
+            labels of the TESS prf arrays (npy file) to be added into the training/test sets; if 'default' then load premade labels (positive/negative sources can either share a label or have different labels)
+        savepath : str or None (default None)
             location to save any output models, tables, and figures will be saved
-        Xtrain : str (default 'default')
-            filename of the true/false TESS prf arrays (npy file) to be added into the training/test sets; if 'default' then load premade set  
-        ytrain : str (default 'default')
-            filename of the labels for the TESS prf arrays (npy file) to be added into the training/test sets; if 'default' then load premade labels
-            (positive/negative sources can either share a label or have different labels)
-        model : str (default 'default')
-            ML model savepath; if 'default' then a prebuilt model is defined
+        model : str or keras.Model (default 'default')
+            ML model or model savepath; if 'default' then a prebuilt model is defined
         train : bool (default False)
             if true then the ML model is trained on the Xtrain dataset (only use if calling an untrained custom model)
         run : bool (default False)
@@ -60,30 +59,47 @@ class SourceDetect:
         monitor : str (default 'loss')
             name of metric to monitor during training (using tensorflow naming conventions)
         """
-        self.filename = filename
-        self.savepath = savepath
-        self.model = model
-        self.flux = np.load(self.filename,allow_pickle=True)
+        if type(flux) == str:
+            flux = np.load(flux)
+        try:
+            type(flux) == np.ndarray
+        except:
+            raise TypeError('flux has to be either a numpy array or a string (filename/path of a numpy array)')
+        self.flux = flux
+        if savepath == None:
+            self.savepath = '.'
+        else:
+            self.savepath = savepath
+        self.directory = os.path.dirname(os.path.abspath(__file__)) + '/'
+        if type(model) == 'str':
+            if model == 'default':
+                model = self.directory+'default_model.keras'
+            self.model = keras.saving.load_model(model,compile=False)
+        else:
+            self.model = model
         self.precheck = precheck
-        self.sets = False
+        self.train = train
 
         self.batch_size = batch_size
         self.epochs = epochs
         self.validation_split = validation_split
 
         self.optimizer = optimizer
-        learning_rate = learning_rate
+        self.learning_rate = learning_rate
         self.monitor = monitor
         self.metrics = metrics
-
-        self.directory = os.path.dirname(os.path.abspath(__file__)) + '/'
+        self.issues = False
 
         if Xtrain == 'default':
-            self.Xtrain = self.directory+'training_data.npy'
-            self.ytrain = self.directory+'training_labels.npy'
+            self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
+            self.ytrain = np.load(self.directory+'training_labels.npy',allow_pickle=True)
         else:
             self.Xtrain = Xtrain
             self.ytrain = ytrain
+            if type(Xtrain) == str:
+                self.Xtrain = np.load(self.Xtrain,allow_pickle=True)
+            if type(ytrain) == str:
+                self.ytrain = np.load(self.ytrain,allow_pickle=True)
 
         if len(self.flux.shape) == 2:
             self.flux = np.expand_dims(self.flux,0)
@@ -126,27 +142,17 @@ class SourceDetect:
         train : bool (default False)
             if True then build and train the model with find_sources.PrfModel
         """
-        # if model == None:
-        #     model = 'None'
-        #     print('No model was given.')
-        #     while model.lower() != 'default' and model[-6:] != '.keras':
-        #         self.model = input('Add a preexisting model savename with the parameter "model" (remember the ".keras") or type "default" to load the default model: ')
-        #         if self.model.lower() != 'default' and model[-6:] != '.keras':
-        #             print('Invalid model')
-
-        if train == True:
-            print('Building and training model:')
-            _model = PrfModel(self.Xtrain,self.ytrain,savepath=self.savepath,model=self.model)
+        if self.train == True or train == True:
+            _model = PrfModel(self.Xtrain,self.ytrain,savepath=self.savepath,model=self.model,loss_func='default')
             self.model = _model.model
-        else:
-            print('Loading model:')
-            if self.model == 'default':
-                self.model = self.directory+'default_model.keras'
-            self.model = keras.saving.load_model(self.model,optimizer=self.optimizer,learning_rate=self.learning_rate,
-                 metrics=self.metrics,monitor=self.monitor,batch_size=self.batch_size,epochs=self.epochs,validation_split=self.validation_split) 
-        
+            self.flux = np.expand_dims(self.flux,-1)
+     
+        #Prevents issue where model doesn't like datasets with shapes different to the training set:
+        _ = self.model.predict(np.ones((1,16,16,1)))
+
         print('Applying model:')
-        self.flux = np.expand_dims(self.flux,-1)
+        if len(self.flux.shape) == 3:
+            self.flux = np.expand_dims(self.flux,-1)
         self.y = self.model.predict(self.flux*np.ones(self.flux.shape))
 
 
@@ -272,11 +278,25 @@ class SourceDetect:
             for mx in range(j):
                 for my in range(i):
                     channels = self.y[a][my][mx]
-                    prob, x1, y1, x2, y2, bright, dim, trash = channels
+                    prob, x1, y1, x2, y2, bright, dim, trash, fake = channels
 
+                    #Ignore all detections with low probability and those likely to be 'trash' or 'fake' sources
                     if prob < threshold:
                         continue
+                    if fake > 0.8:
+                        continue
+                    if bright < 0.6 and dim < 0.6:
+                        if bright < 0.5 and dim < 0.5:
+                            continue
+                        elif fake > 0.2:
+                            continue
                     if trash > bright and trash > dim:
+                        continue
+                    if fake > bright and fake > dim:
+                        #For 'close calls' which are usually genuine detections
+                        if fake - bright > 0.2 or fake - dim > 0.2:
+                            continue
+                    if abs(x2) > 6 or abs(y2) > 6:
                         continue
 
                     px, py = (mx * grid_size) + x1, (my * grid_size) + y1
@@ -289,34 +309,33 @@ class SourceDetect:
                     while int(px) > self.flux.shape[2]-3:
                         px -= 2
 
+                    #Final filters for any obvious false detections on background fluctuations or overexposures
                     if self.flux[a][int(py),int(px)] > -1.5 and self.flux[a][int(py),int(px)] < 1.5:
                         continue 
-                    if np.min(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2]) > -1.5 and np.max(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2]) < 1.5:
-                        continue
-                    if np.max(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) > 7.5 and np.min(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) < -7.5:
-                        continue
-                    if np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2])) < 10:
+                    if np.max(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) > 5 and np.min(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) < -5:
                         continue
 
                     numb_sources += 1
                     smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
+                    # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
                     smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
-                    to_plot_.append((prob,px,py,x2,y2))
+                    print(f'({int(smax_i[1])},{int(smax_i[0])}): {bright}, {dim}, {trash}, {fake}')
                     if smax_i not in positions:
+                        to_plot_.append((prob,smax_i[1],smax_i[0],x2,y2))
                         positions.append(smax_i)
                         self.sources.append(smax_i)
-                    self.frames.append(a)
+                        self.frames.append(a)
 
-                    if smax_i not in self.variable_flag:
-                        self.variable_flag[smax_i] = 1*(bright>dim)
-                    else:
-                        if self.variable_flag[smax_i] != 1*(bright>dim):
-                            self.variable_flag[smax_i] = True
+                        if smax_i not in self.variable_flag:
+                            self.variable_flag[smax_i] = 1*(bright>dim)
+                        else:
+                            if self.variable_flag[smax_i] != 1*(bright>dim):
+                                self.variable_flag[smax_i] = True
 
-                    if self.flux[a][smax_i] > 0:
-                        self.flux_sign.append('positive')
-                    else:
-                        self.flux_sign.append('negative')
+                        if self.flux[a][smax_i] > 0:
+                            self.flux_sign.append('positive')
+                        else:
+                            self.flux_sign.append('negative')
             self.to_plot.append(to_plot_)
             self.sources_by_frame.append(sorted(positions))
             self.num_sources.append(numb_sources)
@@ -361,7 +380,8 @@ class SourceDetect:
         if analyse == True:
             self.source_flux = []
             for s in range(0,len(self.sources)):
-                # aper = RA(positions=(self.sources[s]),w=5,h=5)
+                # ind = np.where(np.array(self.to_plot[self.frames[s]])[1:3] == [self.sources[s][1],self.sources[s][0]])[0]
+                # aper = RA(positions=(self.sources[s]),w=int(self.to_plot[self.frames[s]][ind][3]+1),h=int(self.to_plot[self.frames[s]][ind][4]+1))
                 # self.source_flux.append(aper.do_photometry(self.flux[self.frames[s]][:,:,0])[0][0])
                 self.source_flux.append(np.sum(self.flux[self.frames[s]][self.sources[s][0]-1:self.sources[s][0]+2,self.sources[s][1]-1:self.sources[s][1]+2]))
 
@@ -516,9 +536,7 @@ class SourceDetect:
         issues = ''
         while issues.lower() not in ['yes','no']:
             input('Are there any issues with the image below (reply "yes" or "no"): ')
-        if issues.lower() == 'no':
-            self.issues = False
-        else:
+        if issues.lower() == 'yes':
             self.issues = True
         if do_cut == True:
             cut = input('Would you like to make a cut to the images (type "yes" to cut): ')
@@ -591,6 +609,15 @@ class SourceDetect:
 
         self.result = df_result.reset_index(drop=True)
         self.resultdf(update=True)
+
+        to_plot = []
+        for i in range(0,np.max(self.frames)+1):
+            to_plot_ = []
+            for c in range(0,len(self.to_plot[i])):
+                if self.to_plot[i][c][1:3] in self.result[['x_centroid','y_centroid']].values:
+                    to_plot_.append(self.to_plot[i][c])
+            to_plot.append(to_plot_)
+        self.to_plot = to_plot 
 
 
     def analyse(self,train=False,threshold=0.8):
@@ -681,7 +708,7 @@ class SourceDetect:
             Returns
             ------
             colour : str
-                colour of the box to be plotted over the detected source (red, yellow or green)
+                colour of the box to be plotted over the detected source (red, yellow, orange, or green)
             """
             if p < 0.3:
                 return 'red'
@@ -707,7 +734,7 @@ class SourceDetect:
 
                 for prob, px, py, x2, y2 in self.to_plot[frame]:
                     color = get_color_by_probability(prob)
-                    ax.add_patch(Rectangle((int(px-x2/2),int(py-y2/2)),int(x2+1),int(y2+1),edgecolor=color,fill=False,lw=1))
+                    ax.add_patch(Rectangle((int(px-x2/2),int(py-y2/2)),int(x2+2),int(y2+2),edgecolor=color,fill=False,lw=1))
 
                 if zoom == True:
                     ax.set_ylim(self.zoom_range[0],self.zoom_range[1])
@@ -759,7 +786,6 @@ class SourceDetect:
                     if zoom == True:
                         plt.savefig(f'{self.savepath}/{savename}_{plotnames[p]}_zoomed', dpi=750)
                     else:
-                
                         plt.savefig(f'{self.savepath}/{savename}_{plotnames[p]}', dpi=750)
 
         else:
@@ -772,11 +798,13 @@ class SourceDetect:
             plt.savefig(f'{self.savepath}/{savename}_object_detection')
 
 
-    def SourceDetect(self,train=False,do_cut=False,plot=False):
+    def SourceDetect(self,flux=None,train=False,do_cut=False,plot=False):
         """Perform object detection on a collection of TESS images/frames
         ------
         Parameters
         ------
+        flux : array or None (defualt None)
+            use this parameter to change the set of images being analysed rather than having to create a brand new SourceDetect object
         train : bool (default False)
             if true then the ML model is trained on the Xtrain dataset (only use if calling an untrained custom model)
         do_cut : bool (default False)
@@ -788,7 +816,11 @@ class SourceDetect:
         if self.precheck == True:
             self.preview(do_cut=do_cut)
         if self.issues == False:
+            if flux != None:
+                self.flux = flux
+                if len(self.flux.shape) == 2:
+                    self.flux = np.expand_dims(self.flux,0)
             self.analyse(train=train)
         print('Collection complete')
         if plot == True:
-            self.plot(which_plots=['sources'],saveplots=True)
+            self.plot(which_plots=['sources'])
