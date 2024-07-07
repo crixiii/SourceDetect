@@ -346,9 +346,6 @@ class SourceDetect:
                 self.variable_flag[i] = True
             else:
                 self.variable_flag[i] = 'unsure'
-            if type(self.variable_flag[i]) != bool:
-                self.variable_flag[i] = False
-            self.variable_flag = self.variable_flag
 
         self.sourceID = {}
         id = 0
