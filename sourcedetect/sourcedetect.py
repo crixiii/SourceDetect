@@ -664,7 +664,7 @@ class SourceDetect:
                 self.zoom.append(self.sources_by_frame[frame][i])
 
 
-    def plot(self,which_plots=['sources'],frame=0,threshold=0.8,compare=False,zoom=False,saveplots=False,savename=''):
+    def plot(self,which_plots=['sources'],frame=0,compare=False,zoom=False,saveplots=False,savename=''):
         """Produces output plots illustrating the object detection process with identification boxes.
            Zoom currently only available for the close and unique sources plots
         ------
@@ -678,8 +678,6 @@ class SourceDetect:
                 - "nobox" : the specified frame without any object detection boxes plotted on top
         frame : int (default 0)
             the frame (image index) to be plotted with speficied detections identified (see which_plots above)
-        threshold : float (default 0.8)
-            minimum probability of being a true source (according to the ML model) required for detections to be boxed in the plot
         compare : bool (default False)
             if True then the plots specified by 'which_plots' will be displayed using matplotlib.pyplot.subplots rather than individually
         zoom : bool (default False)
