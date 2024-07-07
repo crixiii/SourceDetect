@@ -267,7 +267,7 @@ class SourceDetect:
         self.sources, self.sources_by_frame = [], []
         self.to_plot = []
         self.num_sources, self.frames = [], []
-        self.flux_sign, self.variable_flag = [], {}
+        self.flux_sign, self.variable_flag, variable_flag_counter = [], {}, {}
 
         print('Performing object detection:')
         for a in range(0,len(self.flux)):
@@ -327,9 +327,11 @@ class SourceDetect:
 
                         if smax_i not in self.variable_flag:
                             self.variable_flag[smax_i] = 1*(bright>dim)
+                            variable_flag_counter[smax_i] = 0
                         else:
                             if self.variable_flag[smax_i] != 1*(bright>dim):
-                                self.variable_flag[smax_i] = True
+                                variable_flag_counter += 1
+                                self.variable_flag[smax_i] = 1*(bright>dim)
 
                         if self.flux[a][smax_i] > 0:
                             self.flux_sign.append('positive')
@@ -340,6 +342,10 @@ class SourceDetect:
             self.num_sources.append(numb_sources)
 
         for i in self.variable_flag.keys():
+            if variable_flag_counter[i] >= 5:
+                self.variable_flag[i] = True
+            else:
+                self.variable_flag[i] = 'unsure'
             if type(self.variable_flag[i]) != bool:
                 self.variable_flag[i] = False
             self.variable_flag = self.variable_flag
