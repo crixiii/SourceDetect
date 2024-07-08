@@ -259,6 +259,8 @@ class SourceDetect:
             lists of positions (as tuples) of every source detected per image
         to_plot : list
             list of tuples that can be used to plot detection results
+        psflike : list
+            probability of each detection being a PSF source
         num_sources : list
             number of sources detected in each image
         frames : list
@@ -271,7 +273,7 @@ class SourceDetect:
             documents whether each unique detection (by position) was flagged for variability
         """
         self.sources, self.sources_by_frame = [], []
-        self.to_plot = []
+        self.to_plot, self.psflike = [], []
         self.num_sources, self.frames = [], []
         self.flux_sign, self.variable_flag, variable_flag_counter = [], {}, {}
 
@@ -324,11 +326,13 @@ class SourceDetect:
                     numb_sources += 1
                     smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
-                    smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
+                    # smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
+                    smax_i = (py+smax[0][0]-1,px+smax[1][0]-1)
                     if smax_i not in positions:
                         to_plot_.append((prob,smax_i[1],smax_i[0],x2,y2))
                         positions.append(smax_i)
                         self.sources.append(smax_i)
+                        self.psflike.append(prob)
                         self.frames.append(a)
 
                         if smax_i not in self.variable_flag:
@@ -336,10 +340,10 @@ class SourceDetect:
                             variable_flag_counter[smax_i] = 0
                         else:
                             if self.variable_flag[smax_i] != 1*(bright>dim):
-                                variable_flag_counter[smax_i] += 1
+                                variable_flag_counter += 1
                                 self.variable_flag[smax_i] = 1*(bright>dim)
 
-                        if self.flux[a][smax_i] > 0:
+                        if self.flux[a][int(smax_i)[0],int(smax_i[1])] > 0:
                             self.flux_sign.append('positive')
                         else:
                             self.flux_sign.append('negative')
@@ -574,6 +578,9 @@ class SourceDetect:
             self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['y_centroid'],row['x_centroid'])],axis=1)
             self.result['group'] = self.result.apply(lambda row:self.groupID[(row['y_centroid'],row['x_centroid'])],axis=1)
             self.result['flux_sign'] = self.flux_sign
+            self.result['psflike'] = self.psflike
+            self.result['xint'] = np.array(self.sources)[:,1].astype('int')
+            self.result['yint'] = np.array(self.sources)[:,0].astype('int')
             self.result.drop(self.result[(self.result.flux>0) & (self.result.flux_sign=='negative')].index)
             self.result.drop(self.result[(self.result.flux<0) & (self.result.flux_sign=='positive')].index)
 
@@ -616,7 +623,6 @@ class SourceDetect:
         df_result = df_result.drop(columns=['group','abs_target'])
 
         self.result = df_result.reset_index(drop=True)
-        self.resultdf(update=True)
 
         to_plot = []
         for i in range(0,np.max(self.frames)+1):
@@ -626,6 +632,8 @@ class SourceDetect:
                     to_plot_.append(self.to_plot[i][c])
             to_plot.append(to_plot_)
         self.to_plot = to_plot 
+
+        self.resultdf(update=True)
 
 
     def analyse(self,train=False,threshold=0.8):
@@ -838,7 +846,7 @@ class SourceDetect:
             self.preview(do_cut=do_cut)
         if savepath !=None:
             self.savepath = savepath
-        if savename != None:
+        if savename != None:    
             self.savename = savename
         if self.issues == False:
             if flux != None:
