@@ -343,7 +343,7 @@ class SourceDetect:
                                 variable_flag_counter += 1
                                 self.variable_flag[smax_i] = 1*(bright>dim)
 
-                        if self.flux[a][int(smax_i)[0],int(smax_i[1])] > 0:
+                        if self.flux[a][int(smax_i[0]),int(smax_i[1])] > 0:
                             self.flux_sign.append('positive')
                         else:
                             self.flux_sign.append('negative')
