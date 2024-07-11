@@ -399,7 +399,7 @@ class SourceDetect:
                 # ind = np.where(np.array(self.to_plot[self.frames[s]])[1:3] == [self.sources[s][1],self.sources[s][0]])[0]
                 # aper = RA(positions=(self.sources[s]),w=int(self.to_plot[self.frames[s]][ind][3]+1),h=int(self.to_plot[self.frames[s]][ind][4]+1))
                 # self.source_flux.append(aper.do_photometry(self.flux[self.frames[s]][:,:,0])[0][0])
-                x = int(self.sources[s][1] + .5); y = self.sources[s][0]
+                x = int(self.sources[s][1] + 0.5); y = int(self.sources[s][0] + 0.5)
                 self.source_flux.append(np.sum(self.flux[int(self.frames[s])][y-1:y+2,x-1:x+2]))
 
         else:
