@@ -2,12 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import pandas as pd
-
+from scipy.ndimage import center_of_mass
 import keras
 import keras.ops as ops
 import tensorflow as tf
 from photutils.aperture import CircularAperture as CA
-
+from copy import deepcopy
 import os
 
 from .prfbuild import PrfBuild
@@ -325,13 +325,18 @@ class SourceDetect:
                         continue 
                     if np.max(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) > 5 and np.min(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) < -5:
                         continue
-
+                    
                     numb_sources += 1
-                    smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
-                    print(smax)
+                    for blob in range(2):
+                        intpy = int(py + 0.5); intpx = int(px + 0.5)
+                        cut = abs(deepcopy(self.flux[a,intpy-2:intpy+3,intpx-2:intpx+3]))
+                        cm = center_of_mass(cut)
+                        py = py+(cm[0]-2);px = px+(cm[1]-2)
+                    #smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
+                    #print(smax)
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
                     # smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
-                    smax_i = (py+smax[0][0]-1,px+smax[1][0]-1)
+                    smax_i = (py,px)
                     if smax_i not in positions:
                         to_plot_.append((prob,smax_i[1],smax_i[0],x2,y2))
                         positions.append(smax_i)
@@ -858,7 +863,7 @@ class SourceDetect:
                 self.flux = flux
                 if len(self.flux.shape) == 2:
                     self.flux = np.expand_dims(self.flux,0)
-            self.analyse(train=train)
+            self.analyse(train=train,threshold=self.threshold)
         print('Collection complete')
         if plot == True:
             self.plot(which_plots=['sources'],savepath=savepath,savename=savename)
