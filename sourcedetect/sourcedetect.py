@@ -18,7 +18,7 @@ from .prfmodel import PrfModel
 class SourceDetect:
     """Performs object detection and analysis on a set of real TESS images"""
 
-    def __init__(self,flux,Xtrain='default',ytrain='default',savepath=None,savename=None,model='default',train=False,run=False,do_cut=False,
+    def __init__(self,flux,Xtrain='default',ytrain='default',savepath=None,savename=None,model='default',threshold=0.8,train=False,run=False,do_cut=False,
                  precheck=False,batch_size=32,epochs=50,validation_split=0.1,optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
                  metrics=["categorical_accuracy"],monitor='loss'):
         """
@@ -95,6 +95,7 @@ class SourceDetect:
         self.monitor = monitor
         self.metrics = metrics
         self.issues = False
+        self.threshold = threshold
 
         if Xtrain == 'default':
             self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
@@ -237,7 +238,7 @@ class SourceDetect:
                 self.unique_sources.append(self.sources_by_frame[s])
 
 
-    def detect(self,threshold=0.8,grid_size=4,close=True,unique=False):
+    def detect(self,threshold=None,grid_size=4,close=True,unique=False):
         """Documents all potential sources detected by the ML model in each image, their potential variability and whether they are in close proximity to any other detections
         ------
         Parameters
@@ -272,6 +273,8 @@ class SourceDetect:
         variable_flag : dictionary
             documents whether each unique detection (by position) was flagged for variability
         """
+        if threshold is None:
+            threshold = self.threshold
         self.sources, self.sources_by_frame = [], []
         self.to_plot, self.psflike = [], []
         self.num_sources, self.frames = [], []
@@ -325,6 +328,7 @@ class SourceDetect:
 
                     numb_sources += 1
                     smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
+                    print(smax)
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
                     # smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
                     smax_i = (py+smax[0][0]-1,px+smax[1][0]-1)
