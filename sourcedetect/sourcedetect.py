@@ -353,9 +353,9 @@ class SourceDetect:
                                 self.variable_flag[smax_i] = 1*(bright>dim)
 
                         if self.flux[a][int(smax_i[0]),int(smax_i[1])] > 0:
-                            self.flux_sign.append('positive')
+                            self.flux_sign.append(1)
                         else:
-                            self.flux_sign.append('negative')
+                            self.flux_sign.append(-1)
             self.to_plot.append(to_plot_)
             self.sources_by_frame.append(sorted(positions))
             self.num_sources.append(numb_sources)
@@ -583,10 +583,10 @@ class SourceDetect:
         """
         if update == False:
             print('Collecting results:')
-            self.result = pd.DataFrame(data={'x_centroid':np.array(self.sources)[:,1],'y_centroid': np.array(self.sources)[:,0],'flux': self.source_flux,'frame':self.frames})
-            self.result['n_detections'] = self.result.apply(lambda row:self.n_detections[(row['y_centroid'],row['x_centroid'])],axis=1) 
-            self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['y_centroid'],row['x_centroid'])],axis=1)
-            self.result['group'] = self.result.apply(lambda row:self.groupID[(row['y_centroid'],row['x_centroid'])],axis=1)
+            self.result = pd.DataFrame(data={'xcentroid':np.array(self.sources)[:,1],'ycentroid': np.array(self.sources)[:,0],'flux': self.source_flux,'frame':self.frames})
+            self.result['n_detections'] = self.result.apply(lambda row:self.n_detections[(row['ycentroid'],row['xcentroid'])],axis=1) 
+            self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['ycentroid'],row['xcentroid'])],axis=1)
+            self.result['group'] = self.result.apply(lambda row:self.groupID[(row['ycentroid'],row['xcentroid'])],axis=1)
             self.result['flux_sign'] = self.flux_sign
             self.result['psflike'] = self.psflike
             self.result['xint'] = np.array(self.sources)[:,1].astype('int')
@@ -596,7 +596,7 @@ class SourceDetect:
 
         self.events = self.result.drop_duplicates(subset='objid').drop(columns=['flux','frame','flux_sign']).reset_index()
         self.result['abs_target'] = self.result['flux'].abs()
-        self.events['variability'] = self.events.apply(lambda row:self.variable_flag[(row['y_centroid'],row['x_centroid'])],axis=1)
+        self.events['variability'] = self.events.apply(lambda row:self.variable_flag[(row['ycentroid'],row['xcentroid'])],axis=1)
 
         max_flux = self.result.groupby('objid')['abs_target'].idxmax().to_dict()
         self.result = self.result.drop(columns=['abs_target'])
@@ -638,7 +638,7 @@ class SourceDetect:
         for i in range(0,np.max(self.frames)+1):
             to_plot_ = []
             for c in range(0,len(self.to_plot[i])):
-                if self.to_plot[i][c][1:3] in self.result[['x_centroid','y_centroid']].values:
+                if self.to_plot[i][c][1:3] in self.result[['xcentroid','ycentroid']].values:
                     to_plot_.append(self.to_plot[i][c])
             to_plot.append(to_plot_)
         self.to_plot = to_plot 
