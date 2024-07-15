@@ -20,7 +20,7 @@ class SourceDetect:
 
     def __init__(self,flux,Xtrain='default',ytrain='default',savepath=None,savename=None,model='default',threshold=0.8,train=False,run=False,do_cut=False,
                  precheck=False,batch_size=32,epochs=50,validation_split=0.1,optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
-                 metrics=["categorical_accuracy"],monitor='loss'):
+                 metrics=["categorical_accuracy"],monitor='loss',verbose=0):
         """
         Initialise
         ------
@@ -96,6 +96,7 @@ class SourceDetect:
         self.metrics = metrics
         self.issues = False
         self.threshold = threshold
+        self.verbose = verbose
 
         if Xtrain == 'default':
             self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
@@ -156,8 +157,8 @@ class SourceDetect:
      
         #Prevents issue where model doesn't like datasets with shapes different to the training set:
         _ = self.model.predict(np.ones((1,16,16,1)))
-
-        print('Applying model:')
+        if self.verbose > 0:
+            print('Applying model:')
         if len(self.flux.shape) == 3:
             self.flux = np.expand_dims(self.flux,-1)
         self.y = self.model.predict(self.flux*np.ones(self.flux.shape))
@@ -279,8 +280,8 @@ class SourceDetect:
         self.to_plot, self.psflike = [], []
         self.num_sources, self.frames = [], []
         self.flux_sign, self.variable_flag, variable_flag_counter = [], {}, {}
-
-        print('Performing object detection:')
+        if self.verbose > 0:
+            print('Performing object detection:')
         for a in range(0,len(self.flux)):
             i, j = self.y[a].shape[0], self.y[a].shape[1]
             numb_sources = 0
@@ -377,8 +378,8 @@ class SourceDetect:
             self.close_detect()
         if unique == True:
             self.unique_detect()
-        
-        print('Object detection complete')
+        if self.verbose > 0:
+            print('Object detection complete')
 
 
     def get_flux(self,analyse=False,position=None,frame=None):
@@ -582,7 +583,8 @@ class SourceDetect:
             summary table of potential sources (detections unique to each position) across all images
         """
         if update == False:
-            print('Collecting results:')
+            if self.verbose > 0:
+                print('Collecting results:')
             self.result = pd.DataFrame(data={'xcentroid':np.array(self.sources)[:,1],'ycentroid': np.array(self.sources)[:,0],'flux': self.source_flux,'frame':self.frames})
             self.result['n_detections'] = self.result.apply(lambda row:self.n_detections[(row['ycentroid'],row['xcentroid'])],axis=1) 
             self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['ycentroid'],row['xcentroid'])],axis=1)
@@ -864,6 +866,7 @@ class SourceDetect:
                 if len(self.flux.shape) == 2:
                     self.flux = np.expand_dims(self.flux,0)
             self.analyse(train=train,threshold=self.threshold)
-        print('Collection complete')
+        if self.verbose > 0:
+            print('Collection complete')
         if plot == True:
             self.plot(which_plots=['sources'],savepath=savepath,savename=savename)
