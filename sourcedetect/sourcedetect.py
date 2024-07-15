@@ -9,6 +9,7 @@ import logging
 logging.getLogger("tensorflow").setLevel(logging.WARNING)
 logging.getLogger('tensorflow').disabled = True
 import tensorflow as tf
+tf.get_logger().setLevel('INFO')
 from photutils.aperture import CircularAperture as CA
 from copy import deepcopy
 import os
