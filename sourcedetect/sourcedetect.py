@@ -5,6 +5,8 @@ import pandas as pd
 from scipy.ndimage import center_of_mass
 import keras
 import keras.ops as ops
+import logging
+logging.getLogger('tensorflow').disabled = True
 import tensorflow as tf
 from photutils.aperture import CircularAperture as CA
 from copy import deepcopy
