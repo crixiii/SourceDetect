@@ -353,9 +353,9 @@ class SourceDetect:
                                 self.variable_flag[smax_i] = 1*(bright>dim)
 
                         if self.flux[a][int(smax_i[0]),int(smax_i[1])] > 0:
-                            self.flux_sign.append('positive')
+                            self.flux_sign.append(1)
                         else:
-                            self.flux_sign.append('negative')
+                            self.flux_sign.append(-1)
             self.to_plot.append(to_plot_)
             self.sources_by_frame.append(sorted(positions))
             self.num_sources.append(numb_sources)
