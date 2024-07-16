@@ -1,3 +1,8 @@
+import logging
+logging.getLogger("tensorflow").setLevel(logging.WARNING)
+logging.getLogger('tensorflow').disabled = True
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
@@ -5,14 +10,14 @@ import pandas as pd
 from scipy.ndimage import center_of_mass
 import keras
 import keras.ops as ops
-import logging
-logging.getLogger("tensorflow").setLevel(logging.WARNING)
-logging.getLogger('tensorflow').disabled = True
+
+
 import tensorflow as tf
-tf.get_logger().setLevel('INFO')
+tf.get_logger().setLevel('ERROR')
+#tf.autograph.set_verbosity(2)
 from photutils.aperture import CircularAperture as CA
 from copy import deepcopy
-import os
+
 
 from .prfbuild import PrfBuild
 from .prfmodel import PrfModel
@@ -160,12 +165,12 @@ class SourceDetect:
             self.flux = np.expand_dims(self.flux,-1)
      
         #Prevents issue where model doesn't like datasets with shapes different to the training set:
-        _ = self.model.predict(np.ones((1,16,16,1)))
+        _ = self.model.predict(np.ones((1,16,16,1)),verbose=self.verbose)
         if self.verbose > 0:
             print('Applying model:')
         if len(self.flux.shape) == 3:
             self.flux = np.expand_dims(self.flux,-1)
-        self.y = self.model.predict(self.flux*np.ones(self.flux.shape))
+        self.y = self.model.predict(self.flux*np.ones(self.flux.shape),verbose=self.verbose)
 
 
     def close_detect(self):
@@ -571,7 +576,7 @@ class SourceDetect:
                 self.cut()
 
 
-    def resultdf(self,update=False):
+    def resultdf(self,update=False,save=False):
         """Creates output tables summarising the full object detection process
         ------
         Parameters
@@ -586,35 +591,36 @@ class SourceDetect:
         events : pd.Dataframe
             summary table of potential sources (detections unique to each position) across all images
         """
-        if update == False:
-            if self.verbose > 0:
-                print('Collecting results:')
-            self.result = pd.DataFrame(data={'xcentroid':np.array(self.sources)[:,1],'ycentroid': np.array(self.sources)[:,0],'flux': self.source_flux,'frame':self.frames})
-            self.result['n_detections'] = self.result.apply(lambda row:self.n_detections[(row['ycentroid'],row['xcentroid'])],axis=1) 
-            self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['ycentroid'],row['xcentroid'])],axis=1)
-            self.result['group'] = self.result.apply(lambda row:self.groupID[(row['ycentroid'],row['xcentroid'])],axis=1)
-            self.result['flux_sign'] = self.flux_sign
-            self.result['psflike'] = self.psflike
-            self.result['xint'] = np.array(self.sources)[:,1].astype('int')
-            self.result['yint'] = np.array(self.sources)[:,0].astype('int')
-            self.result.drop(self.result[(self.result.flux>0) & (self.result.flux_sign=='negative')].index)
-            self.result.drop(self.result[(self.result.flux<0) & (self.result.flux_sign=='positive')].index)
+        if len(self.sources) > 0:
+            if update == False:
+                if self.verbose > 0:
+                    print('Collecting results:')
+                self.result = pd.DataFrame(data={'xcentroid':np.array(self.sources)[:,1],'ycentroid': np.array(self.sources)[:,0],'flux': self.source_flux,'frame':self.frames})
+                self.result['n_detections'] = self.result.apply(lambda row:self.n_detections[(row['ycentroid'],row['xcentroid'])],axis=1) 
+                self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['ycentroid'],row['xcentroid'])],axis=1)
+                self.result['group'] = self.result.apply(lambda row:self.groupID[(row['ycentroid'],row['xcentroid'])],axis=1)
+                self.result['flux_sign'] = self.flux_sign
+                self.result['psflike'] = self.psflike
+                self.result['xint'] = np.array(self.sources)[:,1].astype('int')
+                self.result['yint'] = np.array(self.sources)[:,0].astype('int')
+                self.result.drop(self.result[(self.result.flux>0) & (self.result.flux_sign=='negative')].index)
+                self.result.drop(self.result[(self.result.flux<0) & (self.result.flux_sign=='positive')].index)
 
-        self.events = self.result.drop_duplicates(subset='objid').drop(columns=['flux','frame','flux_sign']).reset_index()
-        self.result['abs_target'] = self.result['flux'].abs()
-        self.events['variability'] = self.events.apply(lambda row:self.variable_flag[(row['ycentroid'],row['xcentroid'])],axis=1)
+            self.events = self.result.drop_duplicates(subset='objid').drop(columns=['flux','frame','flux_sign']).reset_index()
+            self.result['abs_target'] = self.result['flux'].abs()
+            self.events['variability'] = self.events.apply(lambda row:self.variable_flag[(row['ycentroid'],row['xcentroid'])],axis=1)
 
-        max_flux = self.result.groupby('objid')['abs_target'].idxmax().to_dict()
-        self.result = self.result.drop(columns=['abs_target'])
-        self.events['max_flux'] = self.events.apply(lambda row:max_flux[row['objid']],axis=1)
+            max_flux = self.result.groupby('objid')['abs_target'].idxmax().to_dict()
+            self.result = self.result.drop(columns=['abs_target'])
+            self.events['max_flux'] = self.events.apply(lambda row:max_flux[row['objid']],axis=1)
 
-        framei,framef = self.result.groupby('objid')['frame'].min().to_dict(),self.result.groupby('objid')['frame'].max().to_dict()
-        self.events['start_frame'] = self.events.apply(lambda row:framei[row['objid']],axis=1)
-        self.events['end_frame'] = self.events.apply(lambda row:framef[row['objid']],axis=1)
-        self.events = self.events.drop(columns=['index'])
-
-        self.result.to_csv(f'{self.savepath}/{self.savename}/detected_sources')
-        self.events.to_csv(f'{self.savepath}/{self.savename}/detected_events')
+            framei,framef = self.result.groupby('objid')['frame'].min().to_dict(),self.result.groupby('objid')['frame'].max().to_dict()
+            self.events['start_frame'] = self.events.apply(lambda row:framei[row['objid']],axis=1)
+            self.events['end_frame'] = self.events.apply(lambda row:framef[row['objid']],axis=1)
+            self.events = self.events.drop(columns=['index'])
+            if save:
+                self.result.to_csv(f'{self.savepath}/{self.savename}/detected_sources')
+                self.events.to_csv(f'{self.savepath}/{self.savename}/detected_events')
 
     
     def combine_groups(self):
