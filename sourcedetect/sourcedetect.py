@@ -348,25 +348,28 @@ class SourceDetect:
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
                     # smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
                     smax_i = (py,px)
-                    if (smax_i not in positions) & np.isfinite(py) & np.isfinite(px):
-                        to_plot_.append((prob,smax_i[1],smax_i[0],x2,y2))
-                        positions.append(smax_i)
-                        self.sources.append(smax_i)
-                        self.psflike.append(prob)
-                        self.frames.append(a)
+                    try:
+                        if (smax_i not in positions) & np.isfinite(py) & np.isfinite(px):
+                            to_plot_.append((prob,smax_i[1],smax_i[0],x2,y2))
+                            positions.append(smax_i)
+                            self.sources.append(smax_i)
+                            self.psflike.append(prob)
+                            self.frames.append(a)
 
-                        if smax_i not in self.variable_flag:
-                            self.variable_flag[smax_i] = 1*(bright>dim)
-                            variable_flag_counter[smax_i] = 0
-                        else:
-                            if self.variable_flag[smax_i] != 1*(bright>dim):
-                                variable_flag_counter += 1
+                            if smax_i not in self.variable_flag:
                                 self.variable_flag[smax_i] = 1*(bright>dim)
+                                variable_flag_counter[smax_i] = 0
+                            else:
+                                if self.variable_flag[smax_i] != 1*(bright>dim):
+                                    variable_flag_counter += 1
+                                    self.variable_flag[smax_i] = 1*(bright>dim)
 
-                        if self.flux[a][int(smax_i[0]),int(smax_i[1])] > 0:
-                            self.flux_sign.append(1)
-                        else:
-                            self.flux_sign.append(-1)
+                            if self.flux[a][int(smax_i[0]),int(smax_i[1])] > 0:
+                                self.flux_sign.append(1)
+                            else:
+                                self.flux_sign.append(-1)
+                    except:
+                        pass
             self.to_plot.append(to_plot_)
             self.sources_by_frame.append(sorted(positions))
             self.num_sources.append(numb_sources)
