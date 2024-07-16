@@ -330,14 +330,15 @@ class SourceDetect:
                     for blob in range(2):
                         intpy = int(py + 0.5); intpx = int(px + 0.5)
                         cut = abs(deepcopy(self.flux[a,intpy-2:intpy+3,intpx-2:intpx+3]))
-                        cm = center_of_mass(cut)
-                        py = py+(cm[0]-2);px = px+(cm[1]-2)
+                        if np.nansum(cut) > 0.95:
+                            cm = center_of_mass(cut)
+                            py = py+(cm[0]-2);px = px+(cm[1]-2)
                     #smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
                     #print(smax)
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
                     # smax_i = (int(py)+smax[0][0]-1,int(px)+smax[1][0]-1)
                     smax_i = (py,px)
-                    if smax_i not in positions:
+                    if (smax_i not in positions) & np.isfinite(py) & np.isfinite(px):
                         to_plot_.append((prob,smax_i[1],smax_i[0],x2,y2))
                         positions.append(smax_i)
                         self.sources.append(smax_i)
