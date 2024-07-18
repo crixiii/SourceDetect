@@ -337,12 +337,13 @@ class SourceDetect:
                         continue
                     
                     numb_sources += 1
-                    for blob in range(2):
+                    sizes = [2,1]
+                    for size in sizes:
                         intpy = int(py + 0.5); intpx = int(px + 0.5)
-                        cut = abs(deepcopy(self.flux[a,intpy-2:intpy+3,intpx-2:intpx+3]))
+                        cut = abs(deepcopy(self.flux[a,intpy-size:intpy+size+1,intpx-size:intpx+size+1]))
                         if np.nansum(cut) > 0.95:
                             cm = center_of_mass(cut)
-                            py = py+(cm[0]-2);px = px+(cm[1]-2)
+                            py = py+(cm[0]-size);px = px+(cm[1]-size)
                     #smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
                     #print(smax)
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
