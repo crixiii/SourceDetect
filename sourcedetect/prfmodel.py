@@ -19,9 +19,9 @@ class PrfModel:
                  metrics=["categorical_accuracy"],monitor='loss',batch_size=32,epochs=50,validation_split=0.1):
         """
         Initialise
-        ------
+        
         Parameters
-        ------
+        ----------
         Xtrain : str
             TESS prf arrays to be added into the training/test sets  
         ytrain : str
@@ -47,6 +47,7 @@ class PrfModel:
         validation_split : float (default 0.1)
             the ratio of training set images used in the validation set 
         """
+                     
         self.dataset = PrfBuild(Xtrain,ytrain)
         if savepath == None:
             self.savepath = '.'
@@ -75,19 +76,21 @@ class PrfModel:
     
 
     def get_color_by_probability(self,p):
-        """Specifies the box colour plotted for each source detection based on the confidence of the model.
-           This is only important when the threshold is lowered to display uncertain objects in the plots
-        ------
+        """
+        Specifies the box colour plotted for each source detection based on the confidence of the model.
+        This is only important when the threshold is lowered to display uncertain objects in the plots
+        
         Parameters
-        ------
+        ----------
         p : float
             the probability of a detection being a real source
-        ------
+        
         Returns
-        ------
+        -------
         colour : str
             colour of the box to be plotted over the detected source (red, yellow or green)
         """
+        
         if p < 0.3:
             return 'red'
         if p < 0.8:
@@ -96,20 +99,21 @@ class PrfModel:
 
 
     def show_predict(self,threshold=0.1,saveplot=False,skipbox=False):
-        """Plots the object detection result for a real or simulated TESS image and detected positions of the sources
-           and whether they are bright or dim sources
-        ------
+        """
+        Plots the object detection result for a real or simulated TESS image and detected positions of the sources
+        and whether they are bright or dim sources
+        
         Parameters
-        ------
+        ----------
         threshold : float (default 0.1)
             minimum probability of being a valid detection (according to the ML model) required for detections to be boxed in the plot
         saveplot : bool (default False)
             if True then the detections plot is saved to the savepath defined when calling find_sources.PrfModel
         skipbox : bool (default False)
             if True then the image is plotted without the detection boxes
-        ------
+        
         Outputs
-        ------
+        -------
         detections : list
             positions (as tuples) of all potential sources detected by the model 
         num_sources : int
@@ -117,6 +121,7 @@ class PrfModel:
         bright_or_dim : dictionary
             documents whether each detection was flagged as a variable star
         """
+        
         i,j = self.dataset.y[0].shape[0],self.dataset.y[0].shape[1]
         num_sources, prob_sources = 0, 0
 
@@ -186,19 +191,21 @@ class PrfModel:
 
 
     def add_model(self,summary=True):
-        """Call to build the default ML model to be trained and/or display a model summary (for either the default or own custom model)
-        ------
+        """
+        Call to build the default ML model to be trained and/or display a model summary (for either the default or own custom model)
+        
         Parameters
-        ------
+        ----------
         model : str or tensorflow.keras.models.Model (default 'default')
             ML model; if 'default' then a default model is defined.
         summary : bool (default True)
             if True then prints a visual summary of the ML model 
-        ------
+        
         Outputs
-        ------
+        -------
         model : ML model to be used for object detection
         """
+        
         if self.model == 'default':
             x = x_input = tf.keras.layers.Input(shape=(self.dataset.x_shape[0], self.dataset.x_shape[1], 1))
 
@@ -229,13 +236,15 @@ class PrfModel:
 
 
     def add_loss_func(self):
-        """Build the default loss function used to quantify the performance of the training process
-        ------
+        """
+        Build the default loss function used to quantify the performance of the training process
+        
         Returns
-        ------
+        -------
         loss_func : function
             loss function to be used by the ML model
         """
+        
         if self.loss_func == 'default':
             idx_p = [0]
             idx_bb = [1, 2, 3, 4]
@@ -273,13 +282,15 @@ class PrfModel:
 
 
     def compile_model(self,savename='object_detection'):
-        """Compile the ML model with the loss function, an optimiser and evaluation metrics
-        ------
+        """
+        Compile the ML model with the loss function, an optimiser and evaluation metrics
+        
         Parameters
-        ------
+        ----------
         savename : str (default 'object_detection')
             savename for the object detection plot
         """
+        
         self.optimizer = self.optimizer(learning_rate=self.learning_rate)
         self.savename = savename
         self.monitor = self.monitor
@@ -297,15 +308,17 @@ class PrfModel:
 
 
     def build(self,summary=True):
-        """Defines and compiles a ML model for training/testing then creates a dataset and corresponding labels incase that hasn't already been done
-        ------
+        """
+        Defines and compiles a ML model for training/testing then creates a dataset and corresponding labels incase that hasn't already been done
+        
         Parameters
-        ------
+        ----------
         loss : str or func (default 'default')
             loss function; if 'default' then a default loss function is defined
         summary : bool (default True)
             if True then prints a visual summary of the ML model 
         """
+        
         self.add_model(summary=summary)
         self.add_loss_func()
         self.compile_model()
@@ -315,10 +328,11 @@ class PrfModel:
 
 
     def preview(self,num=2,threshold=0.1,saveplot=False,skipbox=False):
-        """Crates a training set and labels then plots a single 16x16 training image (detection boxes will not be useful if this is called before training)
-        ------
+        """
+        Crates a training set and labels then plots a single 16x16 training image (detection boxes will not be useful if this is called before training)
+        
         Parameters
-        ------
+        ----------
         num : int (default 2)
             maximum number of true/false sources in each image
         threshold : float (default 0.1)
@@ -328,28 +342,31 @@ class PrfModel:
         skipbox : bool (default False)
             if True then the image is plotted without the detection boxes
         """
+        
         self.dataset.make_data(size=1,num=num)
         self.dataset.y = self.model.predict(self.dataset.X)
         self.show_predict(threshold=threshold,saveplot=saveplot,skipbox=skipbox)
 
 
     def train(self,batch_size=None,epochs=None,validation_split=None):
-        """Train the ML model
-        ------
+        """
+        Train the ML model
+        
         Parameters
-        ------
+        ----------
         batch_size : None or int (default None)
             batch size used when training the ML model; if None then the batch size defined when calling PrfModel is used
         epochs : None or int (default None)
             number of training epochs performed by the ML model; if None then the number of epochs defined when calling PrfModel is used
         validation_split : None or float (default None)
             the ratio of training set images used in the validation set; if None then the validation split defined when calling PrfModel is used
-        ------
+        
         Outputs
-        ------
+        -------
         history : tf.keras.callbacks.History object
             Record of events during the training process
         """
+        
         if self.batch_size == None:
             self.batch_size = 32
         if self.epochs == None:
@@ -377,13 +394,14 @@ class PrfModel:
 
 
     def sim_detect(self):
-        """Analyses the result of applying an ML model to a simulated image to quantify the effectiveness of the model:
-           finds the number of sources detected/undetected, any close groupings of sources (potential double detections
-           or close objects), the overall number of detections made by the model, and the percentage of detections that 
-           actually correspond to a 'true' source
-        ------
+        """
+        Analyses the result of applying an ML model to a simulated image to quantify the effectiveness of the model:
+        finds the number of sources detected/undetected, any close groupings of sources (potential double detections
+        or close objects), the overall number of detections made by the model, and the percentage of detections that 
+        actually correspond to a 'true' source
+        
         Outputs
-        ------
+        -------
         matches : list
             positions (as tuples) of detections corresponding to each source in the image 
         correct : float
@@ -393,6 +411,7 @@ class PrfModel:
         close_sources : list
             lists of positions (as tuples) of sources within close proximity to each other 
         """
+        
         result = [[] for _ in range(len(self.dataset.sources))]
         ind, corr = 0, 0
 
@@ -469,10 +488,11 @@ class PrfModel:
 
 
     def show_result(self,x_shape=(512,512),y_shape=(128,128),num=20,threshold=0.8,saveplot=False,skipbox=False):
-        """Complete ML model build and evaluation of a simulated full TESS CCD image
-        ------
+        """
+        Complete ML model build and evaluation of a simulated full TESS CCD image
+        
         Parameters
-        ------
+        ----------
         x_shape : tuple (default (512,512))
             shape of the training/test images 
         y_shape : tuple (default (128,128))
@@ -486,6 +506,7 @@ class PrfModel:
         skipbox : bool (default False)
             if True then the image is plotted without the detection boxes
         """
+        
         self.dataset.make_data(x_shape=x_shape,y_shape=y_shape,size=1,num=num)
         self.dataset.y = self.model.predict(self.dataset.X)
         self.show_predict(threshold=threshold,saveplot=saveplot,skipbox=skipbox)
