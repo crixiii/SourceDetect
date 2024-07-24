@@ -140,7 +140,7 @@ class SourceDetect:
             ranges = input('Enter the bounds for the cut in the form "ymin,ymax,xmin,xmax": ').split(',')
             yrange, xrange = [int(ranges[0]),int(ranges[1])], [int(ranges[2]),int(ranges[3])]
 
-        plt.imshow(self.flux[0,yrange[0]:yrange[1],xrange[0]:xrange[1]],cmap='gray')
+        plt.imshow(self.flux[0,yrange[0]:yrange[1],xrange[0]:xrange[1]],vmin=-5,vmax=5)
         plt.colorbar()
         plt.show()
 
