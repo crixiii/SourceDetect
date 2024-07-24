@@ -140,7 +140,7 @@ class SourceDetect:
             ranges = input('Enter the bounds for the cut in the form "ymin,ymax,xmin,xmax": ').split(',')
             yrange, xrange = [int(ranges[0]),int(ranges[1])], [int(ranges[2]),int(ranges[3])]
 
-        plt.imshow(self.flux[0,yrange[0]:yrange[1],xrange[0]:xrange[1]],vmin=-5,vmax=5)
+        plt.imshow(self.flux[0,yrange[0]:yrange[1],xrange[0]:xrange[1]],vmin=-10,vmax=10)
         plt.colorbar()
         plt.show()
 
@@ -166,6 +166,7 @@ class SourceDetect:
      
         #Prevents issue where model doesn't like datasets with shapes different to the training set:
         _ = self.model.predict(np.ones((1,16,16,1)),verbose=self.verbose)
+        
         if self.verbose > 0:
             print('Applying model:')
         if len(self.flux.shape) == 3:
