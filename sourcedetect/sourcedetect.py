@@ -32,9 +32,9 @@ class SourceDetect:
                  metrics=["categorical_accuracy"],monitor='loss',verbose=0):
         """
         Initialise
-        ------
+        
         Parameters
-        ------
+        ----------
         flux : array or str
             TESS image (array of fluxes): either the array itself or its filepath to its file; the flux array must be 2D with dimensions (y,x) or 3D with dimensions (n_frames,y,x)
         Xtrain : str or array (default 'default')
@@ -70,6 +70,7 @@ class SourceDetect:
         monitor : str (default 'loss')
             name of metric to monitor during training (using tensorflow naming conventions)
         """
+                     
         if type(flux) == str:
             flux = np.load(flux)
         try:
@@ -126,15 +127,17 @@ class SourceDetect:
 
 
     def cut(self,xrange=None,yrange=None):
-        """Cut the TESS images down to a specified subregion or via a user prompt 
-        ------
+        """
+        Cut the TESS images down to a specified subregion or via a user prompt 
+        
         Parameters
-        ------
+        ----------
         xrange : None or tuple (default None)
             upper and lower bound for the x-axis of the image cut; if None then this is defined by a user prompt
         yrange : None or tuple (default None)
             upper and lower bound for the y-axis of the image cut; if None then this is defined by a user prompt
         """
+        
         plt.figure()
         if yrange == None or xrange == None:
             ranges = input('Enter the bounds for the cut in the form "ymin,ymax,xmin,xmax": ').split(',')
@@ -152,13 +155,15 @@ class SourceDetect:
         
 
     def apply_model(self,train=False):
-        """Apply the desired model to perform object detection on the image. This funciton can also build, compile and train a ML model using find_sources.PrfModel if desired
-        ------
+        """
+        Apply the desired model to perform object detection on the image. This funciton can also build, compile and train a ML model using find_sources.PrfModel if desired
+        
         Parameters
-        ------
+        ----------
         train : bool (default False)
             if True then build and train the model with find_sources.PrfModel
         """
+        
         if self.train == True or train == True:
             _model = PrfModel(self.Xtrain,self.ytrain,savepath=self.savepath,model=self.model,loss_func='default')
             self.model = _model.model
@@ -175,15 +180,17 @@ class SourceDetect:
 
 
     def close_detect(self):
-        """Identifies any groups of object detections that are in close proximity to one another (potential double detections or close sources)
-        ------
+        """
+        Identifies any groups of object detections that are in close proximity to one another (potential double detections or close sources)
+        
         Outputs
-        ------
+        -------
         close_sources : list
             positions (as tuples) of detections within close proximity to each other across all images
         close_sources_by_frame : list
             lists of positions (as tuples) of detections within close proximity to each other detected per image
         """
+        
         self.close_sources, self.close_sources_by_frame = [], []
 
         for s in range(0,len(self.sources_by_frame)):
@@ -216,13 +223,15 @@ class SourceDetect:
 
 
     def unique_detect(self):
-        """Identifies all guaranteed unique detections in each TESS image (detections not in close proximity to any others plus one detection from each grouping from SourceDetect.close_detect) 
-        ------
+        """
+        Identifies all guaranteed unique detections in each TESS image (detections not in close proximity to any others plus one detection from each grouping from SourceDetect.close_detect) 
+        
         Outputs
-        ------
+        -------
         unique_sources : list
             list of positions (as tuples) of every guaranteed unique detection in each image
         """
+        
         try:
             self.close_sources_by_frame = self.close_sources_by_frame
         except:
@@ -250,10 +259,11 @@ class SourceDetect:
 
 
     def detect(self,threshold=None,grid_size=4,close=True,unique=False):
-        """Documents all potential sources detected by the ML model in each image, their potential variability and whether they are in close proximity to any other detections
-        ------
+        """
+        Documents all potential sources detected by the ML model in each image, their potential variability and whether they are in close proximity to any other detections
+        
         Parameters
-        ------
+        ----------
         threshold : float (default 0.8)
             minimum probability of being a true source (according to the ML model) required for detections to be boxed in the plot
         grid_size : int (default 4)
@@ -262,9 +272,9 @@ class SourceDetect:
             if True then document all grouping of detections in each frame in close proximity to other detections (keep True if you want analysis tables to work)
         unique : bool (default False)
             if True then document all guaranteed unique detections (detections not in close proximity to any others plus one detection from each grouping from SourceDetect.close_detect)
-        ------
+        
         Outputs
-        ------
+        -------
         sources : list
             positions (as tuples) of every source detected in every image
         sources_by_frame : list
@@ -284,6 +294,7 @@ class SourceDetect:
         variable_flag : dictionary
             documents whether each unique detection (by position) was flagged for variability
         """
+        
         if threshold is None:
             threshold = self.threshold
         self.sources, self.sources_by_frame = [], []
@@ -398,22 +409,24 @@ class SourceDetect:
 
 
     def get_flux(self,analyse=False,position=None,frame=None):
-        """Creates a list of the fluxes of each potential source detected by the model or provides the flux at a specified position
-        ------
+        """
+        Creates a list of the fluxes of each potential source detected by the model or provides the flux at a specified position
+        
         Parameters
-        ------
+        ----------
         analyse : bool (default False)
             if True then document flux or every detection in every image
         position : None or tuple (default None)
             if analyse is False then this specifies the position of the detection
         frame : None or int (default None)
             if analyse if False then this specifies the frame (image index) with the detection
-        ------
+        
         Outputs
-        ------
+        -------
         source_flux : list
             flux of every detection in every image (only output if analyse is True)
         """
+        
         if analyse == True:
             self.source_flux = []
             for s in range(0,len(self.sources)):
@@ -431,11 +444,12 @@ class SourceDetect:
 
 
     def group_and_id(self):
-        """Identify the full groups of detections in close proximity across all images, assign each group a number, 
-           and document the number of detecitons at each (x,y) position across all images
-        ------
+        """
+        Identify the full groups of detections in close proximity across all images, assign each group a number, 
+        and document the number of detecitons at each (x,y) position across all images
+        
         Outputs
-        ------
+        -------
         groups : list
             lists of positions (as tuples) of detections in close proximity to each other across all frames 
         groupID : dictionary
@@ -443,14 +457,19 @@ class SourceDetect:
         n_detections : dictionary
             mapping between the position of each potential detected source and the number of detections across all images    
         """
+        
         def find(parent, x):
-            """Subprocess of SourceDetect.group_and_id.group"""
+            """
+            Subprocess of SourceDetect.group_and_id.group
+            """
             if parent[x] != x:
                 parent[x] = find(parent, parent[x])
             return parent[x]
 
         def union(parent, rank, x, y):
-            """Subprocess of SourceDetect.group_and_id.group"""
+            """
+            Subprocess of SourceDetect.group_and_id.group
+            """
             rootX = find(parent, x)
             rootY = find(parent, y)
             if rootX != rootY:
@@ -463,18 +482,20 @@ class SourceDetect:
                     rank[rootX] += 1
 
         def group(close_sources):
-            """Similar to SourceDetect.close_detect but across all images to obtain complete groupings of potential sources
-            ------
+            """
+            Similar to SourceDetect.close_detect but across all images to obtain complete groupings of potential sources
+            
             Parameters
-            ------
+            ----------
             close_sources : list
                 lists of positions (as tuples) of detections in close proximity to each other in each frame separately
-            ------
+            
             Returns
-            ------
+            -------
             result : list
                 lists of positions (as tuples) of detections in close proximity to each other across all frames 
             """
+            
             parent = {}
             rank = {}
 
@@ -500,17 +521,18 @@ class SourceDetect:
             return result
         
         def IDassign(groups,positions):
-            """Assign a group (close proximity detections) ID number, or lack thereof, to every detections across all images
-            ------
+            """
+            Assign a group (close proximity detections) ID number, or lack thereof, to every detections across all images
+            
             Parameters
-            ------
+            ----------
             groups : list
                 list of lists containing positions of detections in close proximity to each other across all images
             positions : list 
                 positions (as tuples) of every detection across all images
-            ------
+            
             Returns
-            ------
+            -------
             result_dict : dictionary
                 mapping between each potential detection and a group ID number (ID of -1 for detections not in a group)
             """
@@ -528,18 +550,20 @@ class SourceDetect:
             return result_dict
 
         def get_num_detections(detections):
-            """Determines the number of detections for potential sources across each image
-            ------
+            """
+            Determines the number of detections for potential sources across each image
+            
             Parameters
-            ------
+            ----------
             detections : list 
                 positions (as tuples) of every detection across all images
-            ------
+            
             Returns
-            ------
+            -------
             n_detections : dictionary
                 mapping between the position of each potential detected source and the number of detections across all images    
             """
+            
             n_detections = {}
             for i in detections:
                 if i in n_detections:
@@ -554,20 +578,22 @@ class SourceDetect:
 
 
     def preview(self,frame=0,do_cut=False):
-        """Plots a specified image prior to object detection; can also apply a cut to the images via SourceDetect.cut
-        ------
+        """
+        Plots a specified image prior to object detection; can also apply a cut to the images via SourceDetect.cut
+        
         Parameters
-        ------
+        ----------
         frame : int (default 0)
             frame (image index) to be plotted 
         do_cut : bool (default False)
             if True then provide user prompt to apply a cut to the images via SourceDetect.cut 
-        ------
+        
         Outputs
-        ------
+        -------
         issues : bool
             if True then there are user identifies issues with the flux file and the object detection process will be cancled
         """
+        
         plt.figure()
         plt.imshow(self.flux[frame],vmin=-10,vmax=10)
         plt.show()
@@ -583,20 +609,22 @@ class SourceDetect:
 
 
     def resultdf(self,update=False,save=False):
-        """Creates output tables summarising the full object detection process
-        ------
+        """
+        Creates output tables summarising the full object detection process
+        
         Parameters
-        ------
+        ----------
         update : bool (default False)
             if True then update the events table rather than redefining both (only used from with in SourceDetect.combine_groups)
-        ------
+        
         Outputs
-        ------
+        -------
         result : pd.Dataframe
             summary table of detections across all images
         events : pd.Dataframe
             summary table of potential sources (detections unique to each position) across all images
         """
+        
         if len(self.sources) > 0:
             if update == False:
                 if self.verbose > 0:
@@ -630,16 +658,18 @@ class SourceDetect:
 
     
     def combine_groups(self):
-        """Reduce the result and events tables from SourceDetect.resultdf to only include the detection/source from each group with the largest flux 
-           (shows the minimum unique detections across all images)
-        ------
+        """
+        Reduce the result and events tables from SourceDetect.resultdf to only include the detection/source from each group with the largest flux 
+        (shows the minimum unique detections across all images)
+        
         Outputs
-        ------
+        -------
         result : pd.Dataframe
             summary table containing positions, flux, object ID, etc of all guaranteed unique detections across all images
         events : pd.Dataframe
             summary table containing positions, flux, frame duration, etc of all guaranteed unique potential sources (detections unique to each position) across all images
-        """    
+        """
+        
         self.result['abs_target'] = self.result['flux'].abs()
         mask = self.result['group'].isin([-1])
         excluded = self.result[mask]
@@ -665,15 +695,17 @@ class SourceDetect:
 
 
     def analyse(self,train=False,threshold=0.8):
-        """Build, compile and train a ML model then perform full object detection analysis and tablate the results
-        ------
+        """
+        Build, compile and train a ML model then perform full object detection analysis and tablate the results
+        
         Parameters
-        ------
+        ----------
         train : bool (default False)
             if true then the ML model is trained on the Xtrain dataset (only use if calling an untrained custom model)
         threshold : float (default 0.8)
             minimum probability of being a true source (according to the ML model) required for detections to be boxed in the plot
         """
+        
         self.apply_model(train=train)
         self.detect(threshold=threshold)
         self.get_flux(analyse=True)
@@ -683,24 +715,26 @@ class SourceDetect:
 
 
     def check_region(self,xrange,yrange,frame=0):
-        """Establishes a subregion of the images to be zoomed in on when plotting with SourceDetect.plot
-        ------
+        """
+        Establishes a subregion of the images to be zoomed in on when plotting with SourceDetect.plot
+        
         Parameters
-        ------
+        ----------
         xrange : tuple
             lower and upper x-axis limits for the zoomed region desired for plotting 
         yrange : tuple
             lower and upper y-axis limits for the zoomed region desired for plotting 
         frame : int (default 0)
             desired frame (image index) to be plotted in the specified zoomed region
-        ------
+        
         Outputs
-        ------
+        -------
         zoom : list
             positions (as tuples) of detections within the specified frame and zoomed region
         zoom_range : list
             bounds of the zoomed region: of the form [ymin,ymax,xmin,xmax]
         """
+        
         self.zoom = []
         self.zoom_range = [yrange[0],yrange[1],xrange[1],xrange[0]]
         for i in range(0,len(self.sources_by_frame[frame])):
@@ -709,11 +743,12 @@ class SourceDetect:
 
 
     def plot(self,which_plots=['sources'],frame=0,compare=False,zoom=False,saveplots=False,savepath=None,savename=None):
-        """Produces output plots illustrating the object detection process with identification boxes.
-           Zoom currently only available for the close and unique sources plots
-        ------
+        """
+        Produces output plots illustrating the object detection process with identification boxes.
+        Zoom currently only available for the close and unique sources plots
+        
         Parameters
-        ------
+        ----------
         which_plots : list (default ['sources'])
             one or more types of image plots to be produced out of the following options for identifying detections:
                 - "sources" : all detections within a particular frame 
@@ -733,6 +768,7 @@ class SourceDetect:
         savename : str or None (default None)
             beginning of the savename for any plots made (if None then the preexisting savename is used)
         """
+        
         if zoom == True:
             try:
                 self.zoom = self.zoom
@@ -746,19 +782,21 @@ class SourceDetect:
                 
 
         def get_color_by_probability(p):
-            """Specifies the box colour plotted for each source detection based on the confidence of the model.
-               This is only important when the threshold is lowered to display uncertain objects in the plots
-            ------
+            """
+            Specifies the box colour plotted for each source detection based on the confidence of the model.
+            This is only important when the threshold is lowered to display uncertain objects in the plots
+            
             Parameters
-            ------
+            ----------
             p : float
                 the probability of a detection being a real source
-            ------
+            
             Returns
-            ------
+            -------
             colour : str
                 colour of the box to be plotted over the detected source (red, yellow, orange, or green)
             """
+            
             if p < 0.3:
                 return 'red'
             if p < 0.8:
@@ -767,10 +805,11 @@ class SourceDetect:
         
         
         def plotter(ax,p,zoom=False):
-            """Performs the plotting for SourceDetect.plot
-            ------
+            """
+            Performs the plotting for SourceDetect.plot
+            
             Parameters
-            ------
+            ----------
             ax : matplotlib.axes._axes.Axes
                 the subplot to be plotted on for this iteration
             p : str
@@ -778,6 +817,7 @@ class SourceDetect:
             zoom : bool (default False)
                 if True then only plot the region specified when calling SourceDetect.zoom (this must be done first)            
             """
+            
             if p == 'sources':
                 ax.set_title('Detected Sources')
 
@@ -852,10 +892,11 @@ class SourceDetect:
 
 
     def SourceDetect(self,flux=None,savepath=None,savename=None,train=False,do_cut=False,plot=False):
-        """Perform object detection on a collection of TESS images/frames
-        ------
+        """
+        Perform object detection on a collection of TESS images/frames
+        
         Parameters
-        ------
+        ----------
         flux : array or None (defualt None)
             use this parameter to change the set of images being analysed rather than having to create a brand new SourceDetect object
         savepath : str or None (default None)
@@ -869,6 +910,7 @@ class SourceDetect:
         plot : bool (default False)
             if True then plot and save an example object detection plot on the first image/frame
         """
+        
         self.issues = False
         if self.precheck == True:
             self.preview(do_cut=do_cut)
