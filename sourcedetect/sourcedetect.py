@@ -24,7 +24,7 @@ class SourceDetect:
 
     def __init__(self,flux,Xtrain='default',ytrain='default',savepath=None,savename=None,model='default',threshold=0.8,train=False,run=False,do_cut=False,
                  precheck=False,batch_size=32,epochs=50,validation_split=0.1,optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
-                 metrics=["categorical_accuracy"],monitor='loss',verbose=0):
+                 metrics=["categorical_accuracy"],monitor='loss',verbose=0,save=False):
         """
         Initialise
         ------
@@ -89,6 +89,7 @@ class SourceDetect:
             self.model = model
         self.precheck = precheck
         self.train = train
+        self.save = save
 
         self.batch_size = batch_size
         self.epochs = epochs
@@ -334,9 +335,9 @@ class SourceDetect:
                     numb_sources += 1
                     for blob in range(2):
                         intpy = int(py + 0.5); intpx = int(px + 0.5)
-                        cut = abs(deepcopy(self.flux[a,intpy-2:intpy+3,intpx-2:intpx+3]))
+                        cut = abs(deepcopy(self.flux[a,intpy-2-blob:intpy+3-blob,intpx-2-blob:intpx+3-blob]))
                         cm = center_of_mass(cut)
-                        py = py+(cm[0]-2);px = px+(cm[1]-2)
+                        py = py+(cm[0]-2-blob);px = px+(cm[1]-2-blob)
                     #smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
                     #print(smax)
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
@@ -403,8 +404,7 @@ class SourceDetect:
         source_flux : list
             flux of every detection in every image (only output if analyse is True)
         """
-        if analyse == True:
-            self.source_flux = []
+        self.source_flux = []
             for s in range(0,len(self.sources)):
                 # ind = np.where(np.array(self.to_plot[self.frames[s]])[1:3] == [self.sources[s][1],self.sources[s][0]])[0]
                 # aper = RA(positions=(self.sources[s]),w=int(self.to_plot[self.frames[s]][ind][3]+1),h=int(self.to_plot[self.frames[s]][ind][4]+1))
@@ -595,8 +595,8 @@ class SourceDetect:
             self.result['group'] = self.result.apply(lambda row:self.groupID[(row['ycentroid'],row['xcentroid'])],axis=1)
             self.result['flux_sign'] = self.flux_sign
             self.result['psflike'] = self.psflike
-            self.result['xint'] = np.array(self.sources)[:,1].astype('int')
-            self.result['yint'] = np.array(self.sources)[:,0].astype('int')
+            self.result['xint'] = (np.array(self.sources)[:,1] + 0.5).astype('int')
+            self.result['yint'] = (np.array(self.sources)[:,0]+ 0.5).astype('int')
             self.result.drop(self.result[(self.result.flux>0) & (self.result.flux_sign=='negative')].index)
             self.result.drop(self.result[(self.result.flux<0) & (self.result.flux_sign=='positive')].index)
 
@@ -612,9 +612,9 @@ class SourceDetect:
         self.events['start_frame'] = self.events.apply(lambda row:framei[row['objid']],axis=1)
         self.events['end_frame'] = self.events.apply(lambda row:framef[row['objid']],axis=1)
         self.events = self.events.drop(columns=['index'])
-
-        self.result.to_csv(f'{self.savepath}/{self.savename}/detected_sources')
-        self.events.to_csv(f'{self.savepath}/{self.savename}/detected_events')
+        if self.save:
+            self.result.to_csv(f'{self.savepath}/{self.savename}/detected_sources')
+            self.events.to_csv(f'{self.savepath}/{self.savename}/detected_events')
 
     
     def combine_groups(self):
