@@ -353,16 +353,10 @@ class SourceDetect:
                     sizes = [2,1]
                     for size in sizes:
                         intpy = int(py + 0.5); intpx = int(px + 0.5)
-<<<<<<< HEAD
-                        cut = abs(deepcopy(self.flux[a,intpy-2-blob:intpy+3-blob,intpx-2-blob:intpx+3-blob]))
-                        cm = center_of_mass(cut)
-                        py = py+(cm[0]-2-blob);px = px+(cm[1]-2-blob)
-=======
                         cut = abs(deepcopy(self.flux[a,intpy-size:intpy+size+1,intpx-size:intpx+size+1]))
                         if np.nansum(cut) > 0.95:
                             cm = center_of_mass(cut)
                             py = py+(cm[0]-size);px = px+(cm[1]-size)
->>>>>>> 34d94af098fd1baa74dbab1c14a26e75d9b9f483
                     #smax = np.where(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])==np.max(np.abs(self.flux[a][int(py)-1:int(py)+2,int(px)-1:int(px)+2,0])))
                     #print(smax)
                     # smax = np.where(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])==np.max(np.abs(self.flux[a][int(py-y2/2):int(py+y2/2+1),int(px-x2/2):int(px+x2/2+1),0])))
@@ -433,13 +427,9 @@ class SourceDetect:
         source_flux : list
             flux of every detection in every image (only output if analyse is True)
         """
-<<<<<<< HEAD
-        self.source_flux = []
-=======
         
         if analyse == True:
             self.source_flux = []
->>>>>>> 34d94af098fd1baa74dbab1c14a26e75d9b9f483
             for s in range(0,len(self.sources)):
                 # ind = np.where(np.array(self.to_plot[self.frames[s]])[1:3] == [self.sources[s][1],self.sources[s][0]])[0]
                 # aper = RA(positions=(self.sources[s]),w=int(self.to_plot[self.frames[s]][ind][3]+1),h=int(self.to_plot[self.frames[s]][ind][4]+1))
@@ -635,21 +625,6 @@ class SourceDetect:
         events : pd.Dataframe
             summary table of potential sources (detections unique to each position) across all images
         """
-<<<<<<< HEAD
-        if update == False:
-            if self.verbose > 0:
-                print('Collecting results:')
-            self.result = pd.DataFrame(data={'xcentroid':np.array(self.sources)[:,1],'ycentroid': np.array(self.sources)[:,0],'flux': self.source_flux,'frame':self.frames})
-            self.result['n_detections'] = self.result.apply(lambda row:self.n_detections[(row['ycentroid'],row['xcentroid'])],axis=1) 
-            self.result['objid'] = self.result.apply(lambda row:self.sourceID[(row['ycentroid'],row['xcentroid'])],axis=1)
-            self.result['group'] = self.result.apply(lambda row:self.groupID[(row['ycentroid'],row['xcentroid'])],axis=1)
-            self.result['flux_sign'] = self.flux_sign
-            self.result['psflike'] = self.psflike
-            self.result['xint'] = (np.array(self.sources)[:,1] + 0.5).astype('int')
-            self.result['yint'] = (np.array(self.sources)[:,0]+ 0.5).astype('int')
-            self.result.drop(self.result[(self.result.flux>0) & (self.result.flux_sign=='negative')].index)
-            self.result.drop(self.result[(self.result.flux<0) & (self.result.flux_sign=='positive')].index)
-=======
         
         if len(self.sources) > 0:
             if update == False:
@@ -665,7 +640,6 @@ class SourceDetect:
                 self.result['yint'] = np.array(self.sources)[:,0].astype('int')
                 self.result.drop(self.result[(self.result.flux>0) & (self.result.flux_sign=='negative')].index)
                 self.result.drop(self.result[(self.result.flux<0) & (self.result.flux_sign=='positive')].index)
->>>>>>> 34d94af098fd1baa74dbab1c14a26e75d9b9f483
 
             self.events = self.result.drop_duplicates(subset='objid').drop(columns=['flux','frame','flux_sign']).reset_index()
             self.result['abs_target'] = self.result['flux'].abs()
@@ -675,23 +649,14 @@ class SourceDetect:
             self.result = self.result.drop(columns=['abs_target'])
             self.events['max_flux'] = self.events.apply(lambda row:max_flux[row['objid']],axis=1)
 
-<<<<<<< HEAD
-        framei,framef = self.result.groupby('objid')['frame'].min().to_dict(),self.result.groupby('objid')['frame'].max().to_dict()
-        self.events['start_frame'] = self.events.apply(lambda row:framei[row['objid']],axis=1)
-        self.events['end_frame'] = self.events.apply(lambda row:framef[row['objid']],axis=1)
-        self.events = self.events.drop(columns=['index'])
-        if self.save:
-            self.result.to_csv(f'{self.savepath}/{self.savename}/detected_sources')
-            self.events.to_csv(f'{self.savepath}/{self.savename}/detected_events')
-=======
             framei,framef = self.result.groupby('objid')['frame'].min().to_dict(),self.result.groupby('objid')['frame'].max().to_dict()
             self.events['start_frame'] = self.events.apply(lambda row:framei[row['objid']],axis=1)
             self.events['end_frame'] = self.events.apply(lambda row:framef[row['objid']],axis=1)
             self.events = self.events.drop(columns=['index'])
-            if save:
+            if self.save:
                 self.result.to_csv(f'{self.savepath}/{self.savename}/detected_sources')
                 self.events.to_csv(f'{self.savepath}/{self.savename}/detected_events')
->>>>>>> 34d94af098fd1baa74dbab1c14a26e75d9b9f483
+
 
     
     def combine_groups(self):
