@@ -8,16 +8,16 @@ class PrfBuild:
     def __init__(self,Xtrain,ytrain,run=True):
         """
         Initialise
-        ------
+        
         Parameters
-        ------
+        ----------
         Xtrain : str
             TESS prf arrays to be added into the training/test sets  
         ytrain : str
             TESS prf arrays to be added into the training/test sets (positive/negative sources can either share a label or have different labels)
-        ------
+        
         Options
-        ------
+        -------
         run : bool
             if true (default) then the training/test set will be built upon calling PrfBuild rather 
             than just defining the prfs and corresponding labels 
@@ -29,23 +29,25 @@ class PrfBuild:
 
 
     def make_labels(self,X,y,num):
-        """Places true/false sources into the training/test array with randomly assigned positions and updates
-           the label arrays accordingly (this is called once per training/test image)
-        ------
+        """
+        Places true/false sources into the training/test array with randomly assigned positions and updates
+        the label arrays accordingly (this is called once per training/test image)
+        
         Parameters
-        ------
+        ----------
         X : array
             training/test dataset template with background but no sources 
         y : array
             training/test dataset labels template (np.zeros array)
         num : int
             maximum number of true/false sources in each image
-        ------
+        
         Returns
-        ------
+        -------
         positions : list
             list of tuples corresponding to the coordinates of the true/false sources
         """
+        
         positions = []
 
         for _ in range(num):
@@ -88,10 +90,11 @@ class PrfBuild:
         
 
     def make_data(self,x_shape=(16,16),y_shape=(4,4),size=64,num=2):
-        """Creates the template training/test dataset and label arrays and saves the positions of the real/false sources.
-        ------
+        """
+        Creates the template training/test dataset and label arrays and saves the positions of the real/false sources.
+        
         Parameters
-        ------
+        ----------
         x_shape : tuple (default (16,16))
             shape of the training/test images 
         y_shape : tuple (default (4,4))
@@ -100,9 +103,9 @@ class PrfBuild:
             number of training/test images
         num : int (default 2)
             maximum number of true/false sources in each image
-        ------
+        
         Outputs
-        ------
+        -------
         sources : list
             positions (as tuples) of the sources in the image
         X : array
@@ -110,6 +113,7 @@ class PrfBuild:
         y : array
             labels corresponding to the training/test images (labels for object position, size, likelihood, and probability of positive/negative/false source)
         """
+        
         self.x_shape = x_shape
         self.y_shape = y_shape
         self.grid_size = int(x_shape[0]/y_shape[0])
