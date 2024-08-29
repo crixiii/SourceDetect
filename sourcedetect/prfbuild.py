@@ -58,7 +58,8 @@ class PrfBuild:
                     number = self.Xtrain[idx]
                     class_, w, h = int(self.ytrain[idx][0]), int(self.ytrain[idx][1]), int(self.ytrain[idx][2])
                     px, py = np.random.randint(2,int(self.x_shape[0]-2)), np.random.randint(2,int(self.x_shape[1]-2))
-                    mx, my = (px+2) // self.grid_size, (py+2) // self.grid_size
+                    # mx, my = (px+2) // self.grid_size, (py+2) // self.grid_size
+                    mx, my = px//self.grid_size, py//self.grid_size
                     output = y[my][mx]
 
                     #prevent multiple generations from overlapping
@@ -72,10 +73,12 @@ class PrfBuild:
                         continue
 
                     output[0] = 1.0
-                    output[1] = px - (mx * self.grid_size)  # x1
-                    output[2] = py - (my * self.grid_size)  # y1
-                    output[3] = int(w)  
-                    output[4] = int(h) 
+                    # output[1] = px - (mx * self.grid_size)  # x1
+                    # output[2] = py - (my * self.grid_size)  # y1
+                    output[1] = px % self.grid_size  # Object grid x index
+                    output[2] = py % self.grid_size  # Object grid y index
+                    output[3] = int(w)  #Object width
+                    output[4] = int(h)  # Object height
                     output[5 + class_] = 1.0
 
                     X[py-h//2:py+(h-h//2),px-w//2:px+(w-w//2),0] = number
