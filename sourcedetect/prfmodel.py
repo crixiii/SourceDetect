@@ -15,17 +15,17 @@ class PrfModel:
     """Builds and/or trains a ML model to perform object detection on simulated datasets from PrfBuild
        or real reduced TESS images then analyses the results"""
 
-    def __init__(self,Xtrain,ytrain,savepath=None,model='default',loss_func='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
+    def __init__(self,Xtrain='deault',ytrain='default',savepath=None,model='default',save_model=True,loss_func='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
                  metrics=["categorical_accuracy"],monitor='loss',batch_size=32,epochs=50,validation_split=0.1):
         """
         Initialise
         
         Parameters
         ----------
-        Xtrain : str
-            TESS prf arrays to be added into the training/test sets  
-        ytrain : str
-            labels of the TESS prf arrays to be added into the training/test sets (positive/negative sources can either share a label or have different labels)
+        Xtrain : str (default 'default')
+            TESS prf arrays to be added into the training/test sets; if 'default' then load premade set    
+        ytrain : str (default 'default')
+            labels of the TESS prf arrays (npy file) to be added into the training/test sets; if 'default' then load premade labels (positive/negative sources can either share a label or have different labels)
         savepath : str or None (default None)
             location to save any output modelsand plots
         model : str (default 'default')
@@ -71,6 +71,7 @@ class PrfModel:
         self.validation_split = validation_split
 
         self.savename = 'object_detection'
+        self.save_model = save_model
 
         self.__main__()
     
@@ -390,7 +391,8 @@ class PrfModel:
             shuffle=True,
             validation_split=self.validation_split,
             verbose=1)
-        self.model.save("da_model.keras")
+        if self.save_model:
+            self.model.save("object_detection_model.keras")
 
 
     def sim_detect(self):
