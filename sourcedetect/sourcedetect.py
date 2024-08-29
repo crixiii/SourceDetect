@@ -88,11 +88,13 @@ class SourceDetect:
             self.savename = savename
         self.directory = os.path.dirname(os.path.abspath(__file__)) + '/'
         if type(model) == str:
+            self.if_train = model
             if model == 'default':
                 model = self.directory+'default_model.keras'
             self.model = keras.saving.load_model(model,compile=False)
         else:
             self.model = model
+            self.if_train = self.model.copy()
         self.precheck = precheck
         self.train = train
         self.save = save
@@ -166,7 +168,7 @@ class SourceDetect:
         """
         
         if self.train == True or train == True:
-            _model = PrfModel(self.Xtrain,self.ytrain,savepath=self.savepath,model=self.model,loss_func='default')
+            _model = PrfModel(self.Xtrain,self.ytrain,savepath=self.savepath,model=self.if_train,loss_func='default')
             self.model = _model.model
             self.flux = np.expand_dims(self.flux,-1)
      
@@ -200,7 +202,7 @@ class SourceDetect:
             for i in range(0,len(self.sources_by_frame[s])):
                 for j in range(0,len(self.sources_by_frame[s])):
                     if i != j:
-                        if np.abs(self.sources_by_frame[s][i][0]-self.sources_by_frame[s][j][0]) <= 4 and np.abs(self.sources_by_frame[s][i][1]-self.sources_by_frame[s][j][1]) <= 4:
+                        if np.abs(self.sources_by_frame[s][i][0]-self.sources_by_frame[s][j][0]) <= 2 and np.abs(self.sources_by_frame[s][i][1]-self.sources_by_frame[s][j][1]) <= 2:
                             close_objs[i].append(self.sources_by_frame[s][j])
 
             _close_sources = []
@@ -313,6 +315,7 @@ class SourceDetect:
                 for my in range(i):
                     channels = self.y[a][my][mx]
                     prob, x1, y1, x2, y2, bright, dim, trash, fake = channels
+                    x1, y1 = round(x1), round(y1)
 
                     #Ignore all detections with low probability and those likely to be 'trash' or 'fake' sources
                     if prob < threshold:
@@ -333,7 +336,8 @@ class SourceDetect:
                     if abs(x2) > 6 or abs(y2) > 6:
                         continue
 
-                    px, py = (mx * grid_size) + x1, (my * grid_size) + y1
+                    # px, py = (mx * grid_size) + x1, (my * grid_size) + y1
+                    px, py = mx*grid_size + x1%grid_size, my*grid_size + y1%grid_size
                     while int(py) < 2:
                         py += 2
                     while int(px) < 2:
@@ -348,6 +352,8 @@ class SourceDetect:
                         continue 
                     if np.max(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) > 5 and np.min(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) < -5:
                         continue
+
+                    print(x1,y1,x2,y2,px,py)
                     
                     numb_sources += 1
                     sizes = [2,1]
@@ -636,8 +642,8 @@ class SourceDetect:
                 self.result['group'] = self.result.apply(lambda row:self.groupID[(row['ycentroid'],row['xcentroid'])],axis=1)
                 self.result['flux_sign'] = self.flux_sign
                 self.result['psflike'] = self.psflike
-                self.result['xint'] = np.array(self.sources)[:,1].astype('int')
-                self.result['yint'] = np.array(self.sources)[:,0].astype('int')
+                self.result['xint'] = np.round(np.array(self.sources)[:,1].astype('float')).astype('int')
+                self.result['yint'] = np.round(np.array(self.sources)[:,0].astype('float')).astype('int')
                 self.result.drop(self.result[(self.result.flux>0) & (self.result.flux_sign=='negative')].index)
                 self.result.drop(self.result[(self.result.flux<0) & (self.result.flux_sign=='positive')].index)
 
