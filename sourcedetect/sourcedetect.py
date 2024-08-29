@@ -112,8 +112,9 @@ class SourceDetect:
         self.verbose = verbose
 
         if Xtrain == 'default':
-            self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
-            self.ytrain = np.load(self.directory+'training_labels.npy',allow_pickle=True)
+            # self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
+            # self.ytrain = np.load(self.directory+'training_labels.npy',allow_pickle=True)
+            pass
         else:
             self.Xtrain = Xtrain
             self.ytrain = ytrain
