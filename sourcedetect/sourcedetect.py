@@ -111,18 +111,20 @@ class SourceDetect:
         self.threshold = threshold
         self.verbose = verbose
 
-        if Xtrain == 'default':
-            # self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
-            # self.ytrain = np.load(self.directory+'training_labels.npy',allow_pickle=True)
-            pass
-        else:
-            self.Xtrain = Xtrain
-            self.ytrain = ytrain
-            if type(Xtrain) == str:
+        self.Xtrain = Xtrain
+        self.ytrain = ytrain
+        if type(Xtrain) == str:
+            if self.Xtrain == 'default':
+                # self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
+                pass
+            else:
                 self.Xtrain = np.load(self.Xtrain,allow_pickle=True)
-            if type(ytrain) == str:
+        if type(ytrain) == str:
+            if self.ytrain == 'default':
+                # self.ytrain = np.load(self.directory+'training_labels.npy',allow_pickle=True)
+                pass
+            else:
                 self.ytrain = np.load(self.ytrain,allow_pickle=True)
-
         if len(self.flux.shape) == 2:
             self.flux = np.expand_dims(self.flux,0)
 
@@ -353,8 +355,6 @@ class SourceDetect:
                         continue 
                     if np.max(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) > 5 and np.min(self.flux[a][int(py)-2:int(py)+3,int(px)-2:int(px)+3]) < -5:
                         continue
-
-                    print(x1,y1,x2,y2,px,py)
                     
                     numb_sources += 1
                     sizes = [2,1]
@@ -900,7 +900,7 @@ class SourceDetect:
                     plt.savefig(f'{self.savepath}/{self.savename}_object_detection', dpi=750)
 
 
-    def SourceDetect(self,flux=None,savepath=None,savename=None,train=False,do_cut=False,plot=False):
+    def SourceDetect(self,flux=None,savepath=None,savename=None,train=None,do_cut=False,plot=False):
         """
         Perform object detection on a collection of TESS images/frames
         
@@ -927,8 +927,12 @@ class SourceDetect:
             self.savepath = savepath
         if savename != None:    
             self.savename = savename
+        if type(train) == type(None):
+            train = self.train
+        else:
+            self.train = train
         if self.issues == False:
-            if flux != None:
+            if type(flux) != type(None):
                 self.flux = flux
                 if len(self.flux.shape) == 2:
                     self.flux = np.expand_dims(self.flux,0)
