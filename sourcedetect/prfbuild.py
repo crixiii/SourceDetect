@@ -25,9 +25,9 @@ class PrfBuild:
         self.Xtrain = Xtrain
         self.ytrain =  ytrain
         self.directory = os.path.dirname(os.path.abspath(__file__)) + '/'
-        if self.Xtrain == 'default':
+        if type(self.Xtrain) == str:
             self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
-        if self.ytrain == 'default':
+        if type(self.ytrain) == str:
             self.ytrain = np.load(self.directory+'training_labels.npy',allow_pickle=True)
         if run==True:
             self.make_data()
