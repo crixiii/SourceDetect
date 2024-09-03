@@ -47,6 +47,8 @@ class SourceDetect:
             beginning of the savename for any tables or plots made 
         model : str or keras.Model (default 'default')
             ML model or model savepath; if 'default' then a prebuilt model is defined
+        threshold : float (defualt 0.8)
+            the minimum probability of genuine detection to append to the results tables
         train : bool (default False)
             if true then the ML model is trained on the Xtrain dataset (only use if calling an untrained custom model)
         run : bool (default False)
@@ -94,7 +96,7 @@ class SourceDetect:
             self.model = keras.saving.load_model(model,compile=False)
         else:
             self.model = model
-            self.if_train = self.model.copy()
+            self.if_train = self.model
         self.precheck = precheck
         self.train = train
         self.save = save
@@ -306,7 +308,7 @@ class SourceDetect:
         self.sources, self.sources_by_frame = [], []
         self.to_plot, self.psflike = [], []
         self.num_sources, self.frames = [], []
-        self.flux_sign, self.variable_flag, variable_flag_counter = [], {}, {}
+        self.flux_sign, self.variable_flag, variable_flag_counter =  [], {}, {}
         if self.verbose > 0:
             print('Performing object detection:')
         for a in range(0,len(self.flux)):
