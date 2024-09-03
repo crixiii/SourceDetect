@@ -23,7 +23,7 @@ class PrfBuild:
             than just defining the prfs and corresponding labels 
         """
         self.Xtrain = Xtrain
-        self.ytrain =  ytrain
+        self.ytrain = ytrain
         self.directory = os.path.dirname(os.path.abspath(__file__)) + '/'
         if type(self.Xtrain) == str:
             self.Xtrain = np.load(self.directory+'training_data.npy',allow_pickle=True)
@@ -61,7 +61,7 @@ class PrfBuild:
                 try:
                     idx = np.random.randint(len(self.Xtrain))
                     number = self.Xtrain[idx]
-                    class_, w, h = int(self.ytrain[idx][0]), int(self.ytrain[idx][1]), int(self.ytrain[idx][2])
+                    class_, offset_x, offset_y, w, h = int(self.ytrain[idx][0]), int(self.ytrain[idx][1]), int(self.ytrain[idx][2]), int(self.ytrain[idx][3]), int(self.ytrain[idx][4])
                     px, py = np.random.randint(2,int(self.x_shape[0]-2)), np.random.randint(2,int(self.x_shape[1]-2))
                     # mx, my = (px+2) // self.grid_size, (py+2) // self.grid_size
                     mx, my = px//self.grid_size, py//self.grid_size
@@ -72,29 +72,35 @@ class PrfBuild:
                         continue
                     overlap = False
                     for i,j in positions:
-                        if i in range(py-2,px+3) and j in range(px-2,px+3):
+                        if i in range(py+-2,py+3) and j in range(px-2,px+3):
+                        # if i in range(py+offset_y+2,py+offset_y+3) and j in range(px+offset_x-2,px+offset_x+3):
                             overlap = True
                     if overlap == True:
                         continue
 
+                    # X[py-h//2:py+(h-h//2),px-w//2:px+(w-w//2),0] = number
+                    # if class_ != 3:
+                    #     X[py-h//2:py+(h-h//2),px-w//2:px+(w-w//2),0] *= np.max((np.random.rand()*2.5)+0.5)
+                    # px, py = px + offset_x, py + offset_y
+                    
                     output[0] = 1.0
                     # output[1] = px - (mx * self.grid_size)  # x1
                     # output[2] = py - (my * self.grid_size)  # y1
                     output[1] = px % self.grid_size  # Object grid x index
                     output[2] = py % self.grid_size  # Object grid y index
-                    output[3] = int(w)  #Object width
-                    output[4] = int(h)  # Object height
+                    output[3] = w # Object width
+                    output[4] = h # Object height
                     output[5 + class_] = 1.0
 
                     X[py-h//2:py+(h-h//2),px-w//2:px+(w-w//2),0] = number
                     if class_ != 3:
-                        X[py-h//2:py+(h-h//2),px-w//2:px+(w-w//2),0] *= np.max((np.random.rand()*2.5)+0.5)
+                        X[py-h//2:py+(h-h//2),px-w//2:px+(w-w//2),0] *= np.max((np.random.rand()*2.5)+0.5) #0.75+np.random.rand()*(3*np.std(X[:,:,0])-0.75)
                     if class_ < 2:
                         positions.append((py,px))
                     placed = True
                 except:
                     pass
-        return positions
+        return positions    
         
 
     def make_data(self,x_shape=(16,16),y_shape=(4,4),size=64,num=2):
