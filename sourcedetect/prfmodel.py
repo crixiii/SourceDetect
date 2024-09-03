@@ -15,7 +15,7 @@ class PrfModel:
     """Builds and/or trains a ML model to perform object detection on simulated datasets from PrfBuild
        or real reduced TESS images then analyses the results"""
 
-    def __init__(self,Xtrain='deault',ytrain='default',savepath=None,model='default',save_model=True,loss_func='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
+    def __init__(self,Xtrain='deault',ytrain='default',savepath=None,model='default',run=True,save_model=True,loss_func='default',optimizer=tf.keras.optimizers.Adam,learning_rate=0.003,
                  metrics=["categorical_accuracy"],monitor='loss',batch_size=32,epochs=50,validation_split=0.1):
         """
         Initialise
@@ -30,6 +30,10 @@ class PrfModel:
             location to save any output modelsand plots
         model : str (default 'default')
             ML model savepath; if 'default' then a prebuilt model is defined
+        run : bool (default True)
+            determines whether the model compiling/training occurs automatically (leave as True in almost all situations)
+        save_model : bool (default True)
+            if True then save the model to savepath after training is complete
         loss_func : str or keras.losses (default 'default')
             loss function used by the model; if 'default' then a prebuilt model is defined
         optimizer : tensorflow.keras.optimizers instance (default Adam)
@@ -46,8 +50,7 @@ class PrfModel:
             number of training epochs performed by the ML model 
         validation_split : float (default 0.1)
             the ratio of training set images used in the validation set 
-        """
-                     
+        """         
         self.dataset = PrfBuild(Xtrain,ytrain)
         if savepath == None:
             self.savepath = '.'
@@ -73,7 +76,8 @@ class PrfModel:
         self.savename = 'object_detection'
         self.save_model = save_model
 
-        self.__main__()
+        if run:
+            self.__main__()
     
 
     def get_color_by_probability(self,p):
