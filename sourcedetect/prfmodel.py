@@ -220,10 +220,12 @@ class PrfModel:
 
             x = tf.keras.layers.Conv2D(12, kernel_size=2, padding='same', activation='relu')(x)
             x = tf.keras.layers.BatchNormalization()(x)
+            x = tf.keras.layers.Dropout(rate=0.1)(x)
 
             x = tf.keras.layers.Conv2D(12, kernel_size=2, padding='same', activation='relu')(x)
             x = tf.keras.layers.MaxPool2D()(x)
-            x = tf.keras.layers.BatchNormalization()(x) 
+            x = tf.keras.layers.BatchNormalization()(x)
+            x = tf.keras.layers.Dropout(rate=0.1)(x)
 
             x_prob = tf.keras.layers.Conv2D(1, kernel_size=3, padding='same', activation='sigmoid', name='x_prob')(x)
             x_boxes = tf.keras.layers.Conv2D(4, kernel_size=3, padding='same', name='x_boxes')(x)
@@ -234,6 +236,7 @@ class PrfModel:
             x_cls = x_cls * gate
 
             x = tf.keras.layers.Concatenate()([x_prob, x_boxes, x_cls]) 
+            # x = tf.keras.layers.Softmax()(x)
             self.model = keras.Model(x_input, x, name="ObjectDetector")
 
         if summary == True:
