@@ -771,7 +771,7 @@ class SourceDetect:
         compare : bool (default False)
             if True then the plots specified by 'which_plots' will be displayed using matplotlib.pyplot.subplots rather than individually
         zoom : bool (default False)
-            if True then only plot the region specified when calling SourceDetect.zoom (this must be done first)    
+            if True then only plot the region specified when calling SourceDetect.check_region (this must be done first)    
         saveplots : bool (default False)
             if True then save all plots to the location defined by SourceDetect.savepath
         savepath : str or None (default None)
