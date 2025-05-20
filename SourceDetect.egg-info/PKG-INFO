@@ -1,0 +1,6 @@
+Metadata-Version: 2.1
+Name: SourceDetect
+Version: 1.0.1
+Summary: Build, train, and implement a CNN model for detecting real objects in TESS data
+Author: Andrew Moore
+Author-email: andrewnmoore73@gmail.com
